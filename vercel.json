@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm --filter @impostor/mobile run build:web",
+  "outputDirectory": "apps/mobile/dist",
+  "installCommand": "pnpm install --frozen-lockfile"
+}
