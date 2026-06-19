@@ -70,16 +70,16 @@ function withKotlinVersionCatalogFix(config, { kotlinVersion = "1.9.25" } = {}) 
 // [${PLUGIN_TAG}] Force Kotlin ${kotlinVersion} across all subprojects
 // This ensures the Compose Compiler in expo-modules-core gets the right Kotlin version
 subprojects {
-    afterEvaluate {
-        // Force all Kotlin dependencies to ${kotlinVersion}
-        configurations.all {
-            resolutionStrategy.eachDependency { details ->
-                if (details.requested.group == 'org.jetbrains.kotlin') {
-                    details.useVersion('${kotlinVersion}')
-                }
+    // Force all Kotlin dependencies to ${kotlinVersion}
+    configurations.all {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'org.jetbrains.kotlin') {
+                details.useVersion('${kotlinVersion}')
             }
         }
-        // Suppress Compose Compiler Kotlin version check as a safety net
+    }
+    // Suppress Compose Compiler Kotlin version check as a safety net
+    plugins.withId('org.jetbrains.kotlin.android') {
         tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
             kotlinOptions {
                 freeCompilerArgs += [
