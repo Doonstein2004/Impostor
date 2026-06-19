@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+web-build/
+.expo/
+.expo-shared/
+.turbo/
+*.tsbuildinfo
+
+# Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# Convex
+.convex/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Native
+*.ipa
+*.apk
+*.aab
+ios/
+android/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*

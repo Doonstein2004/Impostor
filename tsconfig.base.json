@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@impostor/core": ["packages/core/src"],
+      "@impostor/core/*": ["packages/core/src/*"],
+      "@impostor/data": ["packages/data/src"],
+      "@impostor/data/*": ["packages/data/src/*"],
+      "@impostor/ui": ["packages/ui/src"],
+      "@impostor/ui/*": ["packages/ui/src/*"]
+    }
+  }
+}

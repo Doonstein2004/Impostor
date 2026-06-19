@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Impostor Fútbol",
+  "version": "0.1.0",
+  "identifier": "com.tuempresa.impostorfutbol",
+  "build": {
+    "beforeDevCommand": "pnpm --filter @impostor/mobile web",
+    "devUrl": "http://localhost:8081",
+    "beforeBuildCommand": "pnpm --filter @impostor/mobile build:web",
+    "frontendDist": "../../mobile/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Impostor Fútbol",
+        "width": 480,
+        "height": 860,
+        "minWidth": 380,
+        "minHeight": 640,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
+    ]
+  }
+}

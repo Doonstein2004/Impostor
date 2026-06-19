@@ -1,0 +1,29 @@
+{
+  "name": "@impostor/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./api": {
+      "types": "./convex/_generated/api.d.ts",
+      "default": "./convex/_generated/api.js"
+    },
+    "./dataModel": {
+      "types": "./convex/_generated/dataModel.d.ts"
+    },
+    "./schema": "./convex/schema.ts"
+  },
+  "scripts": {
+    "dev": "convex dev",
+    "deploy": "convex deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@impostor/core": "workspace:*",
+    "@impostor/data": "workspace:*",
+    "convex": "^1.17.4"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.3"
+  }
+}

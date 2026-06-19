@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Impostor Fútbol",
+    "slug": "impostor-futbol",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "impostor",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#0b0f0e",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tuempresa.impostorfutbol"
+    },
+    "android": {
+      "package": "com.tuempresa.impostorfutbol"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router", "expo-font"],
+    "experiments": {
+      "typedRoutes": true,
+      "tsconfigPaths": true
+    }
+  }
+}
