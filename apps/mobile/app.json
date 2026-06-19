@@ -13,19 +13,31 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tuempresa.impostorfutbol"
+      "bundleIdentifier": "com.doonbro.impostorfutbol"
     },
     "android": {
-      "package": "com.tuempresa.impostorfutbol"
+      "package": "com.doonbro.impostorfutbol"
     },
     "web": {
       "bundler": "metro",
       "output": "single"
     },
-    "plugins": ["expo-router", "expo-font"],
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
     "experiments": {
       "typedRoutes": true,
       "tsconfigPaths": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "c462bae9-8a4c-4677-98d5-13d00f4b07e5"
+      }
+    },
+    "owner": "doonstein"
   }
 }

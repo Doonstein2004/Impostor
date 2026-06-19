@@ -27,7 +27,7 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://YOUR_PREVIEW_DEPLOYMENT.convex.cloud"
+        "EXPO_PUBLIC_CONVEX_URL": "https://curious-sheep-977.convex.cloud"
       }
     },
     "production": {
@@ -35,7 +35,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://YOUR_PRODUCTION_DEPLOYMENT.convex.cloud"
+        "EXPO_PUBLIC_CONVEX_URL": "https://curious-sheep-977.convex.cloud"
       }
     }
   },
