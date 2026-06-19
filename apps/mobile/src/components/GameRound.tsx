@@ -21,6 +21,7 @@ import Animated, {
   interpolateColor,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
@@ -76,11 +77,12 @@ function ShotClock({ timeLeft, animatedProgress }: {
 // ─── Poker card ───────────────────────────────────────────────────────────
 
 function PokerCard({ card, speakerIndex }: { card: any; speakerIndex: number }) {
-  const [revealed, setRevealed] = useState(false);
+  // Empieza revelado — el jugador ve su personaje de inmediato
+  const [revealed, setRevealed] = useState(true);
   const scaleX = useSharedValue(1);
 
   useEffect(() => {
-    setRevealed(false);
+    setRevealed(true);
     scaleX.value = 1;
   }, [speakerIndex]);
 
@@ -149,7 +151,7 @@ function PokerCard({ card, speakerIndex }: { card: any; speakerIndex: number }) 
                 </>
               )}
 
-              <Text variant="label" className="text-zinc-700 text-xs mt-2">Tocá para voltear</Text>
+              <Text variant="label" className="text-zinc-700 text-xs mt-2">Tocá para ocultar</Text>
 
               <View className="absolute bottom-3 left-4 opacity-40 rotate-180">
                 <Text className="text-gold-400 text-xl">{suit}</Text>
@@ -250,6 +252,71 @@ function MyCardStrip({ card }: { card: any }) {
           ? (charName ? `Disimulá con: ${charName}` : 'Sin pista — improvisá')
           : (charName ?? '—')}
       </Text>
+    </Animated.View>
+  );
+}
+
+// ─── My turn banner ───────────────────────────────────────────────────────
+
+function MyTurnBanner({ isImpostor }: { isImpostor: boolean }) {
+  const pulse = useSharedValue(1);
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.04, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+  }, []);
+
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+
+  return (
+    <Animated.View
+      entering={BounceIn.springify().damping(12)}
+      style={{ marginBottom: 16 }}
+    >
+      <Animated.View
+        style={[
+          pulseStyle,
+          {
+            borderRadius: 20,
+            borderWidth: 2,
+            borderColor: isImpostor ? 'rgba(239,68,68,0.7)' : 'rgba(245,158,11,0.7)',
+            backgroundColor: isImpostor ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',
+            paddingVertical: 18,
+            paddingHorizontal: 16,
+            alignItems: 'center',
+            gap: 6,
+          },
+        ]}
+      >
+        <Text
+          style={{
+            fontSize: 36,
+            fontWeight: '900',
+            letterSpacing: 3,
+            color: isImpostor ? '#f87171' : '#fbbf24',
+          }}
+        >
+          ¡TU TURNO!
+        </Text>
+        <Text
+          style={{
+            fontSize: 13,
+            color: isImpostor ? '#fca5a5' : '#fde68a',
+            textAlign: 'center',
+            opacity: 0.85,
+          }}
+        >
+          {isImpostor
+            ? 'Sos el impostor — disimulá con tu pista'
+            : 'Describí a tu personaje con una pista'}
+        </Text>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -836,7 +903,6 @@ export function GameRound({ room }: { room: RoomView }) {
 
   return (
     <Screen noPadding>
-      {/* Main scroll content */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -847,8 +913,8 @@ export function GameRound({ room }: { room: RoomView }) {
         keyboardShouldPersistTaps="handled"
       >
         {Header}
-        <MyCardStrip card={card} />
 
+        {/* Orden de jugadores — siempre visible arriba */}
         <Animated.View entering={FadeIn.duration(300)} className="mb-3">
           <PlayerRow
             players={room.players}
@@ -859,81 +925,101 @@ export function GameRound({ room }: { room: RoomView }) {
           />
         </Animated.View>
 
-        {turnSeconds > 0 && (
-          <ShotClock timeLeft={timeLeft} animatedProgress={animatedProgress} />
-        )}
+        {isMyTurn ? (
+          <>
+            {/* Banner pulsante — deja MUY claro que es tu turno */}
+            <MyTurnBanner isImpostor={card?.isImpostor ?? false} />
 
-        <View className="my-2">
-          {isMyTurn ? (
-            <PokerCard card={card} speakerIndex={currentIndex} />
-          ) : (
-            <SpeakerSpotlight name={currentSpeakerName} speakerIndex={currentIndex} />
-          )}
-        </View>
+            {/* Timer */}
+            {turnSeconds > 0 && (
+              <ShotClock timeLeft={timeLeft} animatedProgress={animatedProgress} />
+            )}
 
-        {isMyTurn && (
-          <Animated.View entering={FadeInUp.delay(200).springify()} className="mt-2">
-            <Card className="gap-2 border-gold-500/20 bg-gold-500/5">
-              <Text variant="label" className="text-gold-500 tracking-widest text-xs">TU PISTA</Text>
-              <View className="flex-row gap-2">
-                <TextInput
-                  ref={inputRef}
-                  value={text}
-                  onChangeText={setText}
-                  placeholder={
-                    card?.isImpostor
-                      ? 'Disimulá bien… una sola palabra'
-                      : 'Ej: "zurdo", "europeo", "campeón del mundo"'
-                  }
-                  placeholderTextColor="#52525b"
-                  maxLength={60}
-                  returnKeyType="send"
-                  autoFocus
-                  onSubmitEditing={handleSubmit}
-                  className="flex-1 h-12 rounded-xl border border-gold-500/20 bg-surface-soft px-3 text-white text-base"
+            {/* Carta con el personaje — ya revelada, sin tap requerido */}
+            <View className="my-2">
+              <PokerCard card={card} speakerIndex={currentIndex} />
+            </View>
+
+            {/* Input de pista */}
+            <Animated.View entering={FadeInUp.delay(150).springify()}>
+              <Card className="gap-2 border-gold-500/30 bg-gold-500/5">
+                <Text variant="label" className="text-gold-500 tracking-widest text-xs">
+                  ✍️ ESCRIBÍ TU PISTA
+                </Text>
+                <View className="flex-row gap-2">
+                  <TextInput
+                    ref={inputRef}
+                    value={text}
+                    onChangeText={setText}
+                    placeholder={
+                      card?.isImpostor
+                        ? 'Disimulá bien… una sola palabra'
+                        : 'Ej: "zurdo", "europeo", "campeón del mundo"'
+                    }
+                    placeholderTextColor="#52525b"
+                    maxLength={60}
+                    returnKeyType="send"
+                    autoFocus
+                    onSubmitEditing={handleSubmit}
+                    className="flex-1 h-12 rounded-xl border border-gold-500/20 bg-surface-soft px-3 text-white text-base"
+                  />
+                  <Pressable
+                    onPress={handleSubmit}
+                    disabled={busy || !text.trim()}
+                    className={`h-12 w-12 rounded-xl items-center justify-center ${text.trim() ? 'bg-gold-500' : 'bg-surface-soft'}`}
+                  >
+                    {busy ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text className="text-xl font-display">→</Text>
+                    )}
+                  </Pressable>
+                </View>
+                <Text variant="label" className="text-zinc-700 text-xs">{60 - text.length} restantes</Text>
+              </Card>
+            </Animated.View>
+          </>
+        ) : (
+          <>
+            {/* Timer cuando NO es tu turno */}
+            {turnSeconds > 0 && (
+              <ShotClock timeLeft={timeLeft} animatedProgress={animatedProgress} />
+            )}
+
+            {/* Spotlight del hablante actual */}
+            <View className="my-2">
+              <SpeakerSpotlight name={currentSpeakerName} speakerIndex={currentIndex} />
+            </View>
+
+            {/* Tu personaje — referencia discreta en strip */}
+            <MyCardStrip card={card} />
+
+            {/* Mensaje contextual */}
+            <Animated.View entering={FadeInDown.delay(200)} className="mt-1">
+              <Card className="items-center gap-1 border-surface-border py-3">
+                <Text variant="muted" className="text-center text-sm">
+                  <Text className="text-white font-display">{currentSpeakerName}</Text> está dando su pista
+                </Text>
+                <Text variant="label" className="text-zinc-600 text-xs text-center">
+                  Escuchá — ¿es coherente o está improvisando?
+                </Text>
+              </Card>
+            </Animated.View>
+
+            {isHost && (
+              <Animated.View entering={FadeInDown.delay(400)} className="mt-2">
+                <Button
+                  title="SALTAR TURNO"
+                  variant="ghost"
+                  onPress={() => skipSpeaker({ roundId, clientId })}
                 />
-                <Pressable
-                  onPress={handleSubmit}
-                  disabled={busy || !text.trim()}
-                  className={`h-12 w-12 rounded-xl items-center justify-center ${text.trim() ? 'bg-gold-500' : 'bg-surface-soft'}`}
-                >
-                  {busy ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text className="text-xl font-display">→</Text>
-                  )}
-                </Pressable>
-              </View>
-              <Text variant="label" className="text-zinc-700 text-xs">{60 - text.length} restantes</Text>
-            </Card>
-          </Animated.View>
-        )}
-
-        {!isMyTurn && (
-          <Animated.View entering={FadeInDown.delay(200)} className="mt-2">
-            <Card className="items-center gap-2 border-surface-border py-3">
-              <Text variant="muted" className="text-center text-sm">
-                <Text className="text-white font-display">{currentSpeakerName}</Text> está dando su pista
-              </Text>
-              <Text variant="label" className="text-zinc-600 text-xs text-center">
-                Escuchá atentamente — ¿es coherente con el personaje o está improvisando?
-              </Text>
-            </Card>
-          </Animated.View>
-        )}
-
-        {isHost && !isMyTurn && (
-          <Animated.View entering={FadeInDown.delay(400)} className="mt-2">
-            <Button
-              title="SALTAR TURNO"
-              variant="ghost"
-              onPress={() => skipSpeaker({ roundId, clientId })}
-            />
-          </Animated.View>
+              </Animated.View>
+            )}
+          </>
         )}
       </ScrollView>
 
-      {/* Floating notification — absolutely positioned, never contributes to scroll */}
+      {/* Notificación flotante de pista */}
       {showNotif && (
         <View
           style={{ position: 'absolute', bottom: 20, left: 16, right: 16 }}
