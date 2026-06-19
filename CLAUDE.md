@@ -195,10 +195,21 @@ de navegación. Con el banner, el usuario puede volver a su sala sin buscar el c
 
 ## Vercel (web frontend)
 
-- Proyecto: `impostor-futbol` en Vercel.
-- Archivo: `apps/mobile/vercel.json` — rewrite SPA para que todas las rutas apunten a `index.html`.
-- Build command: `pnpm --filter @impostor/mobile run export`
+- Proyecto: `impostor` en Vercel (cuenta doonstein2004s-projects).
+- `vercel.json` raíz: buildCommand apunta solo a `@impostor/mobile` para evitar que Turbo
+  intente compilar `@impostor/desktop` (tauri) en Linux.
+- `apps/mobile/vercel.json`: rewrite SPA para que todas las rutas apunten a `index.html`.
+- Build command: `pnpm --filter @impostor/mobile run build:web`
 - Output directory: `apps/mobile/dist`
+
+### Variable de entorno requerida en Vercel (NO está en git)
+Agregar en Vercel Dashboard → Settings → Environment Variables:
+| Variable | Valor |
+|----------|-------|
+| `EXPO_PUBLIC_CONVEX_URL` | `https://curious-sheep-977.convex.cloud` |
+
+Sin esta variable, el bundle tiene un placeholder y Convex falla con
+"Couldn't parse deployment name placeholder".
 
 ---
 
