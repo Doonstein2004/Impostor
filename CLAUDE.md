@@ -64,16 +64,45 @@ EXPO_PUBLIC_CONVEX_URL=https://curious-sheep-977.convex.cloud
 
 ## Android — Requisitos de build
 
-- **Java 17** requerido (no más nuevo). Instalar con SDKMAN (`sdk install java 17.0.11-tem`).
-- `JAVA_HOME` debe apuntar a Java 17 antes de correr `expo run:android`.
+- **El proyecto DEBE estar en una ruta corta** (máx. ~50 chars). Recomendado: `C:\Dev\Impostor`.
+  - **Por qué**: react-native-reanimated usa CMake con rutas absolutas para sus fuentes C++.
+    CMake crea archivos objeto espejando la ruta: `CMakeFiles/reanimated.dir/C_/Users/...`.
+    Si el proyecto está en `C:\Users\daniel.bello\Documents\Proyectos\Teste\Impostor`, la ruta
+    espejo supera ~320 chars y ninja no puede crear los directorios.
+  - Este es un bug conocido de react-native-reanimated en Windows con paths largos.
+  - Junctions/subst NO funcionan porque Gradle y CMake resuelven a la ruta real.
+
+- **Java 17** requerido (no más nuevo). Instalar en Windows:
+  ```powershell
+  winget install Microsoft.OpenJDK.17
+  ```
+  - Ruta instalada: `C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot`
+  - Setear antes de compilar:
+    ```powershell
+    $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot"
+    $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+    ```
+
 - **Kotlin 1.9.25** requerido por `expo-modules-core` (Compose Compiler 1.5.15).
-  - Fix aplicado en `apps/mobile/android/gradle.properties`:
+  - Fix 1 en `apps/mobile/android/gradle.properties`:
     ```
     android.kotlinVersion=1.9.25
     ```
-  - **Por qué**: el `build.gradle` usa `findProperty('android.kotlinVersion') ?: '1.9.25'`,
-    pero sin la propiedad explícita el BOM de React Native resolvía Kotlin 1.9.24,
-    que es incompatible con el Compose Compiler incluido en `expo-modules-core`.
+  - Fix 2 en `apps/mobile/android/build.gradle` — classpath explícito (sin fix la BOM de RN fuerza 1.9.24):
+    ```groovy
+    classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}")
+    ```
+
+### Pasos completos para compilar el APK debug
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+cd "C:\Dev\Impostor\apps\mobile\android"
+.\gradlew clean
+.\gradlew app:assembleDebug -x lint -x test
+# APK: C:\Dev\Impostor\apps\mobile\android\app\build\outputs\apk\debug\app-debug.apk
+```
 
 ---
 
