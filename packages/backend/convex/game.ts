@@ -173,9 +173,19 @@ export const nextClueRound = mutation({
       .withIndex('by_room', (q) => q.eq('roomId', roomId))
       .collect();
 
+    // Mantener el MISMO orden de la primera vuelta: se conserva el orden previo,
+    // se quitan los que se fueron y se agregan al final los que se sumaron.
+    const prevOrder = round.speakerOrder ?? [];
+    const presentIds = new Set(players.map((p) => p.clientId));
+    const keptOrder = prevOrder.filter((id) => presentIds.has(id));
+    const newcomers = players
+      .map((p) => p.clientId)
+      .filter((id) => !prevOrder.includes(id));
+    const speakerOrder = [...keptOrder, ...newcomers];
+
     await ctx.db.patch(round._id, {
       currentTurn: (round.currentTurn ?? 1) + 1,
-      speakerOrder: shuffleArr(players.map((p) => p.clientId)),
+      speakerOrder,
       currentSpeakerIndex: 0,
       turnStartedAt: Date.now(),
     });

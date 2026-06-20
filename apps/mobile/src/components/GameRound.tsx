@@ -57,16 +57,16 @@ function ShotClock({ timeLeft, animatedProgress }: {
     'text-white';
 
   return (
-    <View className="items-center gap-1 py-2">
+    <View className="flex-row items-center gap-3 py-1.5">
       <Text
         variant="display"
-        className={`text-8xl tabular-nums leading-none ${clockColor}`}
-        style={{ fontVariant: ['tabular-nums'] }}
+        className={`text-3xl tabular-nums leading-none ${clockColor}`}
+        style={{ fontVariant: ['tabular-nums'], minWidth: 44 }}
       >
         {String(timeLeft).padStart(2, '0')}
       </Text>
       <View
-        className="h-1.5 w-full rounded-full bg-surface-soft overflow-hidden"
+        className="flex-1 h-1.5 rounded-full bg-surface-soft overflow-hidden"
         onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
       >
         <Animated.View style={[{ height: 6, borderRadius: 3 }, barStyle]} />
@@ -197,19 +197,20 @@ function PokerCard({ card, speakerIndex }: { card: any; speakerIndex: number }) 
 function SpeakerSpotlight({ name, speakerIndex }: { name: string; speakerIndex: number }) {
   return (
     <Animated.View key={speakerIndex} entering={BounceIn.springify().damping(12)}>
-      <View className="rounded-2xl items-center py-8 px-6 gap-3 border border-gold-500/20 bg-surface-card">
+      <View className="flex-row items-center gap-3 rounded-2xl py-3 px-4 border border-gold-500/20 bg-surface-card">
         <Animated.View
           entering={ZoomIn.delay(150)}
-          className="h-16 w-16 rounded-full bg-gold-500/10 border-2 border-gold-500/40 items-center justify-center"
+          className="h-11 w-11 rounded-full bg-gold-500/10 border-2 border-gold-500/40 items-center justify-center"
         >
-          <Text className="text-gold-400 font-display" style={{ fontSize: 30 }}>
+          <Text className="text-gold-400 font-display" style={{ fontSize: 20 }}>
             {name.charAt(0).toUpperCase()}
           </Text>
         </Animated.View>
-        <Text variant="label" className="text-zinc-500 tracking-widest text-xs">TURNO DE</Text>
-        <Text variant="display" className="text-3xl text-center text-white leading-tight">{name}</Text>
-        <View className="h-px w-12 bg-gold-500/40" />
-        <Text variant="muted" className="text-xs text-center">Escuchá su pista</Text>
+        <View className="flex-1">
+          <Text variant="label" className="text-zinc-500 tracking-widest text-xs">TURNO DE</Text>
+          <Text variant="display" className="text-xl text-white leading-tight" numberOfLines={1}>{name}</Text>
+        </View>
+        <Text variant="muted" className="text-xs">Escuchá</Text>
       </View>
     </Animated.View>
   );
@@ -282,28 +283,30 @@ function MyTurnBanner({ isImpostor }: { isImpostor: boolean }) {
   return (
     <Animated.View
       entering={BounceIn.springify().damping(12)}
-      style={{ marginBottom: 16 }}
+      style={{ marginBottom: 10 }}
     >
       <Animated.View
         style={[
           pulseStyle,
           {
-            borderRadius: 20,
-            borderWidth: 2,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            borderRadius: 14,
+            borderWidth: 1.5,
             borderColor: isImpostor ? 'rgba(239,68,68,0.7)' : 'rgba(245,158,11,0.7)',
             backgroundColor: isImpostor ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',
-            paddingVertical: 18,
-            paddingHorizontal: 16,
-            alignItems: 'center',
-            gap: 6,
+            paddingVertical: 9,
+            paddingHorizontal: 14,
           },
         ]}
       >
         <Text
           style={{
-            fontSize: 36,
+            fontSize: 18,
             fontWeight: '900',
-            letterSpacing: 3,
+            letterSpacing: 1.5,
+            lineHeight: 22,
             color: isImpostor ? '#f87171' : '#fbbf24',
           }}
         >
@@ -311,15 +314,14 @@ function MyTurnBanner({ isImpostor }: { isImpostor: boolean }) {
         </Text>
         <Text
           style={{
-            fontSize: 13,
+            fontSize: 12,
+            flex: 1,
             color: isImpostor ? '#fca5a5' : '#fde68a',
-            textAlign: 'center',
-            opacity: 0.85,
+            opacity: 0.9,
           }}
+          numberOfLines={1}
         >
-          {isImpostor
-            ? 'Sos el impostor — disimulá con tu pista'
-            : 'Describí a tu personaje con una pista'}
+          {isImpostor ? 'disimulá con tu pista' : 'describí a tu personaje'}
         </Text>
       </Animated.View>
     </Animated.View>
@@ -453,7 +455,7 @@ function ClueCard({ clue, myClientId, isLatest }: {
       }}
     >
       {/* Header — autor */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 10 }}>
         <View
           style={{
             height: 26, width: 26, borderRadius: 13,
@@ -477,10 +479,10 @@ function ClueCard({ clue, myClientId, isLatest }: {
       </View>
 
       {/* Texto de la pista — línea propia, con aire */}
-      <View style={{ paddingHorizontal: 14, paddingVertical: 14 }}>
+      <View style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
         <Text
           style={{
-            fontSize: 24, fontWeight: '700', letterSpacing: 0.3, lineHeight: 30,
+            fontSize: 20, fontWeight: '700', letterSpacing: 0.3, lineHeight: 25,
             color: isMe ? '#fde68a' : '#ffffff',
           }}
         >
@@ -537,6 +539,8 @@ function CluesFeed({ clues, myClientId, currentTurn }: {
 }) {
   if (!clues.length) return null;
   const turns = [...new Set(clues.map((c) => c.turn as number))].sort((a, b) => a - b);
+  // Con una sola vuelta el header "VUELTA n" es redundante (ya hay título arriba).
+  const showTurnHeader = turns.length > 1;
 
   return (
     <View style={{ gap: 14 }}>
@@ -548,13 +552,15 @@ function CluesFeed({ clues, myClientId, currentTurn }: {
         const isCurrent = turn === currentTurn;
         return (
           <View key={turn} style={{ gap: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: isCurrent ? 'rgba(245,158,11,0.7)' : '#3f3f46' }} />
-              <Text style={{ fontSize: 11, letterSpacing: 2, fontWeight: '700', color: isCurrent ? '#d97706' : '#52525b' }}>
-                VUELTA {turn}
-              </Text>
-              <Text style={{ fontSize: 11, color: '#3f3f46' }}>{turnClues.length}</Text>
-            </View>
+            {showTurnHeader && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: isCurrent ? 'rgba(245,158,11,0.7)' : '#3f3f46' }} />
+                <Text style={{ fontSize: 11, letterSpacing: 2, fontWeight: '700', color: isCurrent ? '#d97706' : '#52525b' }}>
+                  VUELTA {turn}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#3f3f46' }}>{turnClues.length}</Text>
+              </View>
+            )}
             <View style={{ gap: 8 }}>
               {turnClues.map((clue, i) => (
                 <ClueCard
@@ -922,31 +928,19 @@ export function GameRound({ room }: { room: RoomView }) {
               <ShotClock timeLeft={timeLeft} animatedProgress={animatedProgress} />
             )}
 
-            {/* Spotlight del hablante actual */}
-            <View className="my-2">
+            {/* Spotlight del hablante actual — compacto */}
+            <View className="mt-1 mb-2">
               <SpeakerSpotlight name={currentSpeakerName} speakerIndex={currentIndex} />
             </View>
-
-            {/* Pistas ya dadas — arriba, para tenerlas presentes mientras se escucha */}
-            {cluesFeed}
 
             {/* Tu personaje — referencia discreta en strip */}
             <MyCardStrip card={card} />
 
-            {/* Mensaje contextual */}
-            <Animated.View entering={FadeInDown.delay(200)} className="mt-1">
-              <Card className="items-center gap-1 border-surface-border py-3">
-                <Text variant="muted" className="text-center text-sm">
-                  <Text className="text-white font-display">{currentSpeakerName}</Text> está dando su pista
-                </Text>
-                <Text variant="label" className="text-zinc-600 text-xs text-center">
-                  Escuchá — ¿es coherente o está improvisando?
-                </Text>
-              </Card>
-            </Animated.View>
+            {/* Pistas ya dadas — arriba, para tenerlas presentes mientras se escucha */}
+            {cluesFeed}
 
             {isHost && (
-              <Animated.View entering={FadeInDown.delay(400)} className="mt-2">
+              <Animated.View entering={FadeInDown.delay(400)} className="mt-3">
                 <Button
                   title="SALTAR TURNO"
                   variant="ghost"

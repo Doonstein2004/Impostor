@@ -1,7 +1,7 @@
 import { api } from '@impostor/backend/api';
 import { Screen, Text } from '@impostor/ui';
 import { useQuery } from 'convex/react';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GameChat } from '@/components/Chat';
@@ -50,7 +50,6 @@ export default function RoomScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: `Sala ${room.code}` }} />
       {room.status === 'lobby' && <Lobby room={room} />}
       {room.status === 'playing' && <GameRound room={room} />}
       {room.status === 'voting' && <Voting room={room} />}

@@ -242,6 +242,28 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-06-20 (tanda 7) — Orden de vueltas + desfase de timer
+- **Orden de turnos entre vueltas**: `nextClueRound` re-barajaba el `speakerOrder` en cada
+  vuelta. Ahora **conserva el orden de la primera vuelta** (filtra a los que se fueron y
+  agrega al final a los que se sumaron). El orden de pregunta se mantiene toda la partida.
+- **Timer adelantado en mobile**: el contador comparaba `Date.now()` del cliente con el
+  `turnStartedAt` del servidor → si el reloj del teléfono está desfasado, el timer corre
+  adelantado/atrasado. Nueva query `time.now` (hora del servidor); `useCountdown` mide el
+  desfase una vez y lo aplica, así el contador es consistente entre dispositivos.
+  **IMPORTANTE**: `time.ts` es función nueva → requiere push a Convex.
+
+### 2026-06-20 (tanda 6) — Elementos compactos (mobile)
+- **Problema**: en mobile el banner "¡TU TURNO!" (36px) y el timer (96px, text-8xl) ocupaban
+  casi toda la pantalla, empujando las pistas de los demás fuera de vista.
+- **ShotClock horizontal**: número 96px→30px, ahora en fila con la barra al lado (~40px de alto).
+- **MyTurnBanner compacto**: de ~130px a ~44px (fila: "¡TU TURNO!" 18px + subtítulo inline).
+- **SpeakerSpotlight compacto**: de columna grande (py-8) a fila (avatar 44 + nombre + "Escuchá").
+- **No-tu-turno**: se quitó la card de contexto redundante; orden = spotlight → tu carta → pistas.
+- **ClueCard**: texto 24→20px y paddings menores (entran más pistas sin volver a verse apretadas).
+- **CluesFeed**: el header "VUELTA n" solo aparece con >1 vuelta (evita doble título).
+- **Header nativo del room oculto** (`headerShown: false` en `_layout` y `room/[code]`): cada fase
+  ya tiene su barra/salir; así no se duplicaba el inset del status bar (espacio vacío arriba).
+
 ### 2026-06-20 (tanda 5) — UX menos scroll + chat que no tapa
 - **Chat no tapa (alto dinámico)**: el `CHAT_BOTTOM_INSET` fijo (96) se reemplazó por medición
   real. `useChatDock` (zustand en `lib/useChatDock.ts`) guarda el alto que reporta la barra de

@@ -38,7 +38,9 @@ export default function RootLayout() {
             }}
           >
             <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="room/[code]" options={{ title: 'Sala' }} />
+            {/* Sin header nativo: cada fase tiene su propia barra/salir y así no
+                se duplica el inset del status bar (espacio vacío arriba). */}
+            <Stack.Screen name="room/[code]" options={{ headerShown: false }} />
           </Stack>
         </ConvexProvider>
       </SafeAreaProvider>

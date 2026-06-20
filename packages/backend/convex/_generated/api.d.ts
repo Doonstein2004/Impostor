@@ -12,6 +12,7 @@ import type * as clues from "../clues.js";
 import type * as game from "../game.js";
 import type * as messages from "../messages.js";
 import type * as rooms from "../rooms.js";
+import type * as time from "../time.js";
 import type * as votes from "../votes.js";
 
 import type {
@@ -25,6 +26,7 @@ declare const fullApi: ApiFromModules<{
   game: typeof game;
   messages: typeof messages;
   rooms: typeof rooms;
+  time: typeof time;
   votes: typeof votes;
 }>;
 
