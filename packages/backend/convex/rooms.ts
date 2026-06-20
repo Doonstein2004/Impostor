@@ -105,6 +105,24 @@ export const leave = mutation({
   },
 });
 
+/** El host expulsa a un jugador de la sala (no puede expulsarse a sí mismo). */
+export const kick = mutation({
+  args: { roomId: v.id('rooms'), hostClientId: v.string(), targetClientId: v.string() },
+  handler: async (ctx, { roomId, hostClientId, targetClientId }) => {
+    const room = await ctx.db.get(roomId);
+    if (!room) throw new Error('Sala no encontrada');
+    if (room.hostClientId !== hostClientId) throw new Error('Sólo el host puede expulsar');
+    if (targetClientId === hostClientId) throw new Error('El host no puede expulsarse a sí mismo');
+
+    const player = await ctx.db
+      .query('players')
+      .withIndex('by_room_client', (q) => q.eq('roomId', roomId).eq('clientId', targetClientId))
+      .first();
+    if (!player) return;
+    await ctx.db.delete(player._id);
+  },
+});
+
 /** Actualiza el estado de conexión y actividad del jugador. */
 export const updatePresence = mutation({
   args: { roomId: v.id('rooms'), clientId: v.string(), connected: v.boolean() },

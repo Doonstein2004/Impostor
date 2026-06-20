@@ -5,12 +5,14 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
 import Animated, { BounceIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSession } from '@/lib/session';
+import { useChatInset } from '@/lib/useChatDock';
 import type { RoomView } from './types';
 
 export function ImpostorGuess({ room }: { room: RoomView }) {
   const { clientId } = useSession();
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId!;
+  const chatInset = useChatInset(24);
 
   const state = useQuery(api.game.getImpostorGuessState, roundId ? { roundId } : 'skip');
   const submitGuess = useMutation(api.game.submitImpostorGuess);
@@ -138,6 +140,7 @@ export function ImpostorGuess({ room }: { room: RoomView }) {
           />
         </Animated.View>
       )}
+      <View style={{ height: chatInset }} />
     </Screen>
   );
 }

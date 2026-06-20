@@ -13,19 +13,31 @@ import {
 } from '@impostor/core';
 import type { RoomView } from './types';
 import { api } from '@impostor/backend/api';
-import { CHARACTERS } from '@impostor/data';
+import { CHARACTERS, SELECTABLE_CLUBS } from '@impostor/data';
 import { Button, Card, Screen, Text } from '@impostor/ui';
 import * as Clipboard from 'expo-clipboard';
 import { useMutation } from 'convex/react';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, Share, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, Share, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInLeft } from 'react-native-reanimated';
 import { useSession } from '@/lib/session';
 import { POSITION_COLORS } from './types';
 
 function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
+/**
+ * Construye el enlace de invitación que precarga el código en el home.
+ * En web usa el origin actual; en mobile usa EXPO_PUBLIC_APP_URL si está seteada.
+ */
+function buildJoinUrl(code: string): string | null {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return `${window.location.origin}/?code=${code}`;
+  }
+  const base = process.env.EXPO_PUBLIC_APP_URL;
+  return base ? `${base.replace(/\/$/, '')}/?code=${code}` : null;
 }
 
 const INACTIVE_THRESHOLD_MS = 60_000;
@@ -81,6 +93,7 @@ function ConfigTabs({
   const maxRounds = config.maxRounds ?? 3;
   const maxClueRounds = config.maxClueRounds ?? 3;
   const voteSeconds = config.voteSeconds ?? 60;
+  const commMode = config.commMode ?? 'texto';
 
   const [secondsDraft, setSecondsDraft] = useState(
     config.turnSeconds > 0 ? String(config.turnSeconds) : '',
@@ -256,6 +269,32 @@ function ConfigTabs({
             </View>
 
             <View className="gap-2">
+              <Text variant="label" className="text-zinc-500 text-xs">🏟️ Clubes (vacío = todos)</Text>
+              <View className="flex-row flex-wrap gap-1.5">
+                {SELECTABLE_CLUBS.map((club) => {
+                  const active = (config.clubs ?? []).includes(club);
+                  return (
+                    <Pressable
+                      key={club}
+                      onPress={() => onPatch({ clubs: toggle(config.clubs ?? [], club) })}
+                      className={`rounded-full border px-2.5 py-1
+                        ${active ? 'border-gold-500/40 bg-gold-500/15' : 'border-surface-border bg-surface-soft'}`}
+                    >
+                      <Text className={`text-xs font-body ${active ? 'text-gold-400' : 'text-zinc-400'}`}>
+                        {club}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {(config.clubs ?? []).length > 0 && (
+                <Pressable onPress={() => onPatch({ clubs: [] })} className="self-start">
+                  <Text variant="label" className="text-zinc-600 text-xs">✕ Limpiar clubes</Text>
+                </Pressable>
+              )}
+            </View>
+
+            <View className="gap-2">
               <Text variant="label" className="text-zinc-500 text-xs">👤 Tipo de personaje</Text>
               <View className="flex-row gap-2">
                 {ROLES.map((r: Role) => {
@@ -288,6 +327,36 @@ function ConfigTabs({
         {/* ── REGLAS tab ── */}
         {tab === 'reglas' && (
           <>
+            <View className="gap-2">
+              <Text variant="label" className="text-zinc-500 text-xs">💬 Comunicación</Text>
+              <View className="flex-row gap-1.5">
+                {([
+                  { key: 'texto', emoji: '💬', label: 'Chat de texto' },
+                  { key: 'audio', emoji: '🎙️', label: 'Sala de audio' },
+                ] as const).map(({ key, emoji, label }) => {
+                  const active = commMode === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => onPatch({ commMode: key })}
+                      className={`flex-1 items-center py-2.5 rounded-xl border
+                        ${active ? 'border-pitch-500/40 bg-pitch-500/20' : 'border-surface-border bg-surface-soft'}`}
+                    >
+                      <Text style={{ fontSize: 20 }}>{emoji}</Text>
+                      <Text className={`text-xs font-body mt-0.5 ${active ? 'text-pitch-400' : 'text-zinc-400'}`}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {commMode === 'audio' && (
+                <Text variant="label" className="text-zinc-600 text-xs">
+                  🚧 La sala de audio está en construcción — por ahora muestra un aviso.
+                </Text>
+              )}
+            </View>
+
             <View className="gap-2">
               <Text variant="label" className="text-zinc-500 text-xs">⏱️ Segundos por turno</Text>
               <View className="flex-row gap-1.5">
@@ -423,8 +492,12 @@ export function Lobby({ room }: { room: RoomView }) {
   const updateConfig = useMutation(api.rooms.updateConfig);
   const startRound = useMutation(api.game.startRound);
   const leave = useMutation(api.rooms.leave);
+  const kickPlayer = useMutation(api.rooms.kick);
 
   const [codeCopied, setCodeCopied] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+  const [confirmInactive, setConfirmInactive] = useState(false);
+  const [kickConfirm, setKickConfirm] = useState<string | null>(null);
 
   const config = room.config;
   const usedIds = new Set(room.usedCharacterIds);
@@ -437,37 +510,42 @@ export function Lobby({ room }: { room: RoomView }) {
 
   async function patch(partial: Partial<GameConfig>) {
     if (!isHost) return;
+    setStartError(null);
     await updateConfig({ roomId: room._id, clientId, config: { ...config, ...partial } });
   }
 
   async function invite() {
-    const message = `¡Unite a mi sala de Impostor Fútbol! Código: ${room.code}`;
+    const url = buildJoinUrl(room.code);
+    const message = url
+      ? `¡Unite a mi sala de Impostor Fútbol! Entrá directo: ${url}\n(o usá el código ${room.code})`
+      : `¡Unite a mi sala de Impostor Fútbol! Código: ${room.code}`;
     try {
       await Share.share({ message });
     } catch {
-      await Clipboard.setStringAsync(room.code);
-      Alert.alert('Código copiado', room.code);
+      await Clipboard.setStringAsync(url ?? room.code);
+      Alert.alert('Enlace copiado', url ?? room.code);
     }
   }
 
-  async function handleStart() {
-    if (room.players.length < 3)
-      return Alert.alert('Faltan jugadores', 'Se necesitan al menos 3 para empezar.');
-    if (poolSize === 0)
-      return Alert.alert('Sin personajes', 'Esa combinación no tiene jugadores. Ajustá la configuración.');
+  // Jugadores inactivos o desconectados (los que pueden trabar la partida).
+  const inactivePlayers = room.players.filter(isInactive);
 
-    const inactivePlayers = room.players.filter(isInactive);
-    if (inactivePlayers.length > 0) {
-      Alert.alert(
-        '⚠️ Jugadores inactivos',
-        `${inactivePlayers.map((p) => p.name).join(', ')} ${inactivePlayers.length === 1 ? 'está' : 'están'} inactivo${inactivePlayers.length > 1 ? 's' : ''} o desconectado${inactivePlayers.length > 1 ? 's' : ''}.\n¿Querés empezar igual?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Empezar igual', style: 'destructive', onPress: doStart },
-        ],
-      );
+  async function handleStart() {
+    setStartError(null);
+    if (room.players.length < 3) {
+      setStartError('Se necesitan al menos 3 jugadores para empezar.');
       return;
     }
+    if (totalPoolSize === 0) {
+      setStartError('Esta combinación de filtros no tiene personajes. Ajustá la configuración.');
+      return;
+    }
+    // Si hay inactivos/desconectados, pedimos confirmación inline (Alert no funciona en web).
+    if (inactivePlayers.length > 0 && !confirmInactive) {
+      setConfirmInactive(true);
+      return;
+    }
+    setConfirmInactive(false);
     await doStart();
   }
 
@@ -475,7 +553,17 @@ export function Lobby({ room }: { room: RoomView }) {
     try {
       await startRound({ roomId: room._id, clientId });
     } catch (e) {
-      Alert.alert('Error', String(e));
+      setStartError(String(e instanceof Error ? e.message : e));
+    }
+  }
+
+  async function handleKick(targetClientId: string) {
+    setKickConfirm(null);
+    try {
+      await kickPlayer({ roomId: room._id, hostClientId: clientId, targetClientId });
+      setConfirmInactive(false);
+    } catch (e) {
+      setStartError(String(e instanceof Error ? e.message : e));
     }
   }
 
@@ -562,9 +650,34 @@ export function Lobby({ room }: { room: RoomView }) {
                   </View>
                 )}
               </View>
-              <View className="flex-row items-center gap-1">
-                <Text className="text-sm">🏆</Text>
-                <Text variant="muted">{p.score}</Text>
+              <View className="flex-row items-center gap-2">
+                <View className="flex-row items-center gap-1">
+                  <Text className="text-sm">🏆</Text>
+                  <Text variant="muted">{p.score}</Text>
+                </View>
+                {isHost && !p.isHost && (
+                  kickConfirm === p.clientId ? (
+                    <View className="flex-row items-center gap-1">
+                      <Pressable
+                        onPress={() => handleKick(p.clientId)}
+                        className="px-2 py-1 rounded-lg border border-impostor-500/60 bg-impostor-500/10"
+                      >
+                        <Text className="text-impostor-400 text-xs font-display">Expulsar</Text>
+                      </Pressable>
+                      <Pressable onPress={() => setKickConfirm(null)} className="px-2 py-1">
+                        <Text className="text-zinc-500 text-xs">No</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Pressable
+                      onPress={() => setKickConfirm(p.clientId)}
+                      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                      className="h-7 w-7 items-center justify-center rounded-lg border border-surface-border active:opacity-70"
+                    >
+                      <Text className="text-zinc-500 text-sm">✕</Text>
+                    </Pressable>
+                  )
+                )}
               </View>
             </Animated.View>
           ))}
@@ -595,17 +708,35 @@ export function Lobby({ room }: { room: RoomView }) {
       <Animated.View entering={FadeInDown.delay(230).duration(400)} className="gap-3 pb-6">
         {isHost ? (
           <>
-            <Button
-              title={
-                totalPoolSize === 0
-                  ? 'Sin personajes en el pool'
-                  : poolSize > 0
-                  ? `⚽ ¡Partida ${room.roundNumber + 1}! (${poolSize} disponibles)`
-                  : `⚽ ¡Partida ${room.roundNumber + 1}! (reinicia pool)`
-              }
-              onPress={handleStart}
-              disabled={totalPoolSize === 0 || room.players.length < 3}
-            />
+            {startError && (
+              <View className="rounded-xl border border-impostor-500/50 bg-impostor-500/10 px-3 py-2">
+                <Text variant="label" className="text-impostor-400 text-xs">⚠️ {startError}</Text>
+              </View>
+            )}
+
+            {confirmInactive && inactivePlayers.length > 0 ? (
+              <View className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-3 gap-2">
+                <Text variant="label" className="text-yellow-400 text-xs">
+                  ⚠️ {inactivePlayers.map((p) => p.name).join(', ')} {inactivePlayers.length === 1 ? 'está inactivo/desconectado' : 'están inactivos/desconectados'}
+                </Text>
+                <Text variant="muted" className="text-xs">
+                  Pueden trabar la partida si no responden. Podés expulsarlos en la lista de arriba.
+                </Text>
+                <Button title="▶️ Empezar igual" variant="secondary" onPress={doStart} />
+                <Button title="Cancelar" variant="ghost" onPress={() => setConfirmInactive(false)} />
+              </View>
+            ) : (
+              <Button
+                title={
+                  totalPoolSize === 0
+                    ? 'Sin personajes en el pool'
+                    : poolSize > 0
+                    ? `⚽ ¡Partida ${room.roundNumber + 1}! (${poolSize} disponibles)`
+                    : `⚽ ¡Partida ${room.roundNumber + 1}! (reinicia pool)`
+                }
+                onPress={handleStart}
+              />
+            )}
             {poolSize === 0 && totalPoolSize > 0 && (
               <Text variant="label" className="text-center text-zinc-500 text-xs -mt-1">
                 Se usaron todos los personajes del pool — se vuelven a mezclar

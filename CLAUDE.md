@@ -242,6 +242,86 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-06-20 (tanda 5) — UX menos scroll + chat que no tapa
+- **Chat no tapa (alto dinámico)**: el `CHAT_BOTTOM_INSET` fijo (96) se reemplazó por medición
+  real. `useChatDock` (zustand en `lib/useChatDock.ts`) guarda el alto que reporta la barra de
+  chat vía `onLayout`; las pantallas usan `useChatInset()` como padding inferior. En modo
+  panel lateral el alto es 0. Así el chat nunca tapa la última pista ni los controles.
+- **MESA COMPLETA con menos scroll**: encabezado compacto en una línea y **pistas primero**
+  (antes iban después del botón gigante de votar). El botón "Abrir votación" quedó debajo de
+  las pistas. Con 3 jugadores ya no hay que scrollear para ver las pistas.
+- **Turno propio input-first**: se quitó la `PokerCard` gigante del flujo principal; ahora va
+  `MyCardStrip` (compacto, ahora también muestra la pista del impostor) + el input arriba, y la
+  carta completa quedó detrás de un toggle "Ver mi carta". Mucho menos scroll para escribir.
+
+### 2026-06-20 (tanda 4)
+- **Bug "no avisa al iniciar"**: en web `Alert.alert` no funciona, y `handleStart` lo usaba
+  para el aviso de jugadores inactivos/desconectados → la partida no arrancaba y no decía
+  nada. Reemplazado por **feedback inline** en el Lobby: `startError` (card roja) y
+  `confirmInactive` (card amarilla con "Empezar igual"/"Cancelar"). El botón ya no está
+  `disabled` silenciosamente; `handleStart` valida y explica.
+- **Expulsar jugadores**: nueva mutation `rooms.kick` (host expulsa a un no-host). En el
+  Lobby cada jugador no-host tiene una ✕ con confirmación. Resuelve el caso de alguien que
+  se desconecta/sale y traba la partida. Mid-game ya estaba cubierto por "SALTAR TURNO" y el
+  "Revelar resultado" manual del host.
+- **IMPORTANTE**: `rooms.kick` es función nueva → requiere push a Convex (`pnpm convex:dev`).
+
+### 2026-06-20 (tanda 3)
+- **Detalle de votos en reveal**: `getReveal` ahora devuelve `votersByTarget` (quién votó a
+  cada acusado) y `totalVotes`. `Reveal.tsx` muestra una sección "Votos" con el conteo por
+  jugador y los nombres de quienes lo votaron, marcando IMPOSTOR/EXPULSADO.
+- **Chat rediseñado (no tapa + fluido)**: `Chat.tsx`
+  - **Input siempre visible**: ya no hace falta abrir para escribir.
+  - **Panel lateral en web ancho** (`width >= 820`): va fijo a la derecha, sin tapar la
+    columna del juego. En mobile/web angosto es barra inferior con historial expandible.
+  - **No tapa controles**: exporta `CHAT_BOTTOM_INSET` (96) y las pantallas de juego
+    (GameRound, Voting, Reveal, ImpostorGuess) reservan ese alto al final.
+  - Nota: en teléfonos (Android/iOS) no hay espacio lateral, por eso ahí el chat es una
+    barra inferior con input fijo (no panel al costado).
+
+### 2026-06-20 (tanda 2)
+- **Scrollbar en web**: `Screen` y el `ScrollView` de `GameRound` ahora muestran la barra
+  de scroll en web (`showsVerticalScrollIndicator={Platform.OS === 'web'}`) para poder
+  bajar con el mouse.
+- **Chat acoplado (no bloqueante)**: `Chat.tsx` se rediseñó de modal flotante con backdrop
+  a un **dock inferior colapsable**. Por defecto es una barra que muestra el último mensaje;
+  al expandir NO usa backdrop, así se puede responder sin tapar ni bloquear la pista.
+- **Feed de pistas arriba**: en `GameRound` el feed (`cluesFeed`) se subió — debajo del input
+  cuando es tu turno, y debajo del spotlight cuando no. Antes quedaba al fondo y se perdía.
+- **Enlace de invitación**: `Lobby.invite()` genera una URL que precarga el código
+  (`window.location.origin/?code=XXXX` en web; `EXPO_PUBLIC_APP_URL` en mobile). El home
+  (`index.tsx`) lee `?code=` con `useLocalSearchParams`, muestra una tarjeta "Te invitaron"
+  y deja entrar poniendo solo el nombre.
+- **Descartar banner de sala activa**: el banner "SALA ACTIVA" en el home ahora tiene una ✕
+  que limpia `currentRoomCode`.
+- **Filtro de clubes**: nuevo campo `clubs?: string[]` en `GameConfig`, en `filterPool` y en
+  el schema (`clubs` opcional). `@impostor/data` expone `SELECTABLE_CLUBS`/`popularClubs()`
+  (clubes con ≥3 personajes, excluyendo selecciones nacionales). Selector en el Lobby (tab
+  Jugadores).
+- **+30 personajes**: nuevos jugadores y DTs en `players.ts` (actuales, experimentados,
+  modernos y clásicos) para enriquecer el pool y el filtro de clubes.
+- **IMPORTANTE**: los cambios de schema (`clubs` en `gameConfigValidator`) requieren push a
+  Convex (`pnpm convex:dev`) igual que `messages`/`commMode`.
+
+### 2026-06-20
+- **Reacciones persistentes**: se eliminó el toast flotante descartable (`ClueNotification`)
+  que solo mostraba la última pista. Ahora hay un feed persistente (`CluesFeed` + `ClueCard`
+  en `GameRound.tsx`) que muestra TODAS las pistas de la ronda agrupadas por vuelta, siempre
+  visible, con la fila completa de 6 emojis de reacción en cada pista. Las reacciones ya no
+  desaparecen. **Por qué**: el usuario quería tenerlas presentes durante toda la discusión.
+- **Rediseño de pistas**: la vieja `ClueRow` apilaba nombre+pista en ~40px (se veía "achatada").
+  `ClueCard` da aire: header con autor, pista en su propia línea grande (24px) y reacciones
+  separadas por divisor. La última pista de la vuelta se marca con badge "NUEVA".
+- **Chat de sala**: nueva tabla `messages` + `messages.ts` (`send`/`listByRoom`, últimos 80).
+  Componente `Chat.tsx` (`GameChat`) = overlay flotante con botón 💬 (badge de no leídos) y
+  panel deslizable. Montado en `room/[code].tsx` para todas las fases salvo el lobby.
+- **commMode (texto/audio)**: campo nuevo en `GameConfig` (`'texto' | 'audio'`, default `'texto'`),
+  en schema (`commMode` opcional) y selector en el Lobby (tab Reglas). Si es `'audio'`, el panel
+  muestra un placeholder "próximamente" (la sala de audio real será **LiveKit**, ver decisión).
+  **IMPORTANTE**: tras estos cambios hay que pushear el schema/funciones nuevas a Convex
+  (`pnpm convex:dev` o `convex deploy`) para que `messages` y `commMode` funcionen en runtime.
+  El `_generated/api.d.ts` se editó a mano para incluir `messages` (codegen requiere auth).
+
 ### 2026-06-19
 - **Fix Android Kotlin**: `android.kotlinVersion=1.9.25` en `gradle.properties`.
   Causa: BOM de RN forzaba 1.9.24, incompatible con Compose Compiler 1.5.15.

@@ -4,6 +4,7 @@ import { useQuery } from 'convex/react';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { GameChat } from '@/components/Chat';
 import { GameRound } from '@/components/GameRound';
 import { ImpostorGuess } from '@/components/ImpostorGuess';
 import { Lobby } from '@/components/Lobby';
@@ -55,6 +56,8 @@ export default function RoomScreen() {
       {room.status === 'voting' && <Voting room={room} />}
       {room.status === 'impostorGuessing' && <ImpostorGuess room={room} />}
       {(room.status === 'reveal' || room.status === 'finished') && <Reveal room={room} />}
+      {/* Chat de sala — disponible en todas las fases salvo el lobby */}
+      {room.status !== 'lobby' && <GameChat room={room} />}
     </>
   );
 }

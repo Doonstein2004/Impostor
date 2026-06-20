@@ -7,12 +7,14 @@ import Animated, { BounceIn, FadeInDown, FadeInRight } from 'react-native-reanim
 import { router } from 'expo-router';
 import { useSession } from '@/lib/session';
 import { useCountdown } from '@/lib/useCountdown';
+import { useChatInset } from '@/lib/useChatDock';
 import type { RoomView } from './types';
 
 export function Voting({ room }: { room: RoomView }) {
   const { clientId } = useSession();
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId;
+  const chatInset = useChatInset(24);
 
   const castVote = useMutation(api.votes.cast);
   const reveal = useMutation(api.game.reveal);
@@ -184,6 +186,7 @@ export function Voting({ room }: { room: RoomView }) {
           <Text variant="muted" className="text-center text-xs">El host revelará el resultado cuando esté listo.</Text>
         </View>
       )}
+      <View style={{ height: chatInset }} />
     </Screen>
   );
 }

@@ -162,4 +162,47 @@ export const CHARACTERS: Character[] = [
   { id: 'sampaoli', name: 'Sampaoli', fullName: 'Jorge Sampaoli', nationality: 'Argentina', zone: 'medio', era: 'actual', role: 'dt', club: 'Argentina' },
   { id: 'tite', name: 'Tite', fullName: 'Adenor Leonardo Bacchi', nationality: 'Brasil', zone: 'atacante', era: 'experimentado', role: 'dt', club: 'Brasil' },
   { id: 'del-bosque', name: 'Del Bosque', fullName: 'Vicente del Bosque', nationality: 'España', zone: 'medio', era: 'experimentado', role: 'dt', club: 'España', tags: ['mundial'] },
+
+  // ─── EXTRA: jugadores actuales ─────────────────────────────────────────────
+  { id: 'kante', name: 'Kanté', fullName: "N'Golo Kanté", nationality: 'Francia', zone: 'medio', era: 'actual', role: 'jugador', club: 'Chelsea', tags: ['mundial'] },
+  { id: 'son', name: 'Son', fullName: 'Son Heung-min', nationality: 'Corea del Sur', zone: 'atacante', era: 'actual', role: 'jugador', club: 'Tottenham' },
+  { id: 'kvaratskhelia', name: 'Kvaratskhelia', fullName: 'Khvicha Kvaratskhelia', nationality: 'Georgia', zone: 'atacante', era: 'actual', role: 'jugador', club: 'Napoli' },
+  { id: 'rashford', name: 'Rashford', fullName: 'Marcus Rashford', nationality: 'Inglaterra', zone: 'atacante', era: 'actual', role: 'jugador', club: 'Manchester United' },
+  { id: 'bernardo-silva', name: 'Bernardo Silva', fullName: 'Bernardo Silva', nationality: 'Portugal', zone: 'medio', era: 'actual', role: 'jugador', club: 'Manchester City' },
+  { id: 'bruno-fernandes', name: 'Bruno Fernandes', fullName: 'Bruno Fernandes', nationality: 'Portugal', zone: 'medio', era: 'actual', role: 'jugador', club: 'Manchester United' },
+  { id: 'casemiro', name: 'Casemiro', fullName: 'Carlos Henrique Casimiro', nationality: 'Brasil', zone: 'medio', era: 'actual', role: 'jugador', club: 'Manchester United' },
+  { id: 'ruben-dias', name: 'Rúben Dias', fullName: 'Rúben Dias', nationality: 'Portugal', zone: 'defensor', era: 'actual', role: 'jugador', club: 'Manchester City' },
+  { id: 'saliba', name: 'Saliba', fullName: 'William Saliba', nationality: 'Francia', zone: 'defensor', era: 'actual', role: 'jugador', club: 'Arsenal' },
+  { id: 'odegaard', name: 'Ødegaard', fullName: 'Martin Ødegaard', nationality: 'Noruega', zone: 'medio', era: 'actual', role: 'jugador', club: 'Arsenal' },
+  { id: 'rice', name: 'Rice', fullName: 'Declan Rice', nationality: 'Inglaterra', zone: 'medio', era: 'actual', role: 'jugador', club: 'Arsenal' },
+  { id: 'gundogan', name: 'Gündoğan', fullName: 'İlkay Gündoğan', nationality: 'Alemania', zone: 'medio', era: 'actual', role: 'jugador', club: 'Manchester City' },
+  { id: 'leao', name: 'Leão', fullName: 'Rafael Leão', nationality: 'Portugal', zone: 'atacante', era: 'actual', role: 'jugador', club: 'Milan' },
+  { id: 'nico-williams', name: 'Nico Williams', fullName: 'Nicholas Williams', nationality: 'España', zone: 'atacante', era: 'actual', role: 'jugador', club: 'Athletic Club' },
+  { id: 'maignan', name: 'Maignan', fullName: 'Mike Maignan', nationality: 'Francia', zone: 'portero', era: 'actual', role: 'jugador', club: 'Milan' },
+  { id: 'ederson', name: 'Ederson', fullName: 'Ederson Moraes', nationality: 'Brasil', zone: 'portero', era: 'actual', role: 'jugador', club: 'Manchester City' },
+  { id: 'donnarumma', name: 'Donnarumma', fullName: 'Gianluigi Donnarumma', nationality: 'Italia', zone: 'portero', era: 'actual', role: 'jugador', club: 'PSG' },
+
+  // ─── EXTRA: experimentados ─────────────────────────────────────────────────
+  { id: 'busquets', name: 'Busquets', fullName: 'Sergio Busquets', nationality: 'España', zone: 'medio', era: 'experimentado', role: 'jugador', club: 'Barcelona', tags: ['mundial'] },
+  { id: 'thiago-silva', name: 'Thiago Silva', fullName: 'Thiago Silva', nationality: 'Brasil', zone: 'defensor', era: 'experimentado', role: 'jugador', club: 'Chelsea' },
+  { id: 'marcelo', name: 'Marcelo', fullName: 'Marcelo Vieira', nationality: 'Brasil', zone: 'defensor', era: 'experimentado', role: 'jugador', club: 'Real Madrid' },
+  { id: 'jordi-alba', name: 'Jordi Alba', fullName: 'Jordi Alba', nationality: 'España', zone: 'defensor', era: 'experimentado', role: 'jugador', club: 'Barcelona' },
+  { id: 'pique', name: 'Piqué', fullName: 'Gerard Piqué', nationality: 'España', zone: 'defensor', era: 'experimentado', role: 'jugador', club: 'Barcelona', tags: ['mundial'] },
+
+  // ─── EXTRA: modernos / clásicos ────────────────────────────────────────────
+  { id: 'david-silva', name: 'David Silva', fullName: 'David Silva', nationality: 'España', zone: 'medio', era: 'moderno', role: 'jugador', club: 'Manchester City', tags: ['mundial'] },
+  { id: 'xabi-alonso', name: 'Xabi Alonso', fullName: 'Xabi Alonso', nationality: 'España', zone: 'medio', era: 'moderno', role: 'jugador', club: 'Real Madrid', tags: ['mundial'] },
+  { id: 'nedved', name: 'Nedvěd', fullName: 'Pavel Nedvěd', nationality: 'Rep. Checa', zone: 'medio', era: 'moderno', role: 'jugador', club: 'Juventus', tags: ['balon_de_oro'] },
+  { id: 'stoichkov', name: 'Stoichkov', fullName: 'Hristo Stoichkov', nationality: 'Bulgaria', zone: 'atacante', era: 'moderno', role: 'jugador', club: 'Barcelona', tags: ['balon_de_oro'] },
+  { id: 'weah', name: 'Weah', fullName: 'George Weah', nationality: 'Liberia', zone: 'atacante', era: 'moderno', role: 'jugador', club: 'Milan', tags: ['balon_de_oro'] },
+  { id: 'paolo-rossi', name: 'Paolo Rossi', fullName: 'Paolo Rossi', nationality: 'Italia', zone: 'atacante', era: 'antiguo', role: 'jugador', club: 'Juventus', tags: ['mundial', 'balon_de_oro'] },
+
+  // ─── EXTRA: directores técnicos ────────────────────────────────────────────
+  { id: 'luis-enrique', name: 'Luis Enrique', fullName: 'Luis Enrique Martínez', nationality: 'España', zone: 'atacante', era: 'actual', role: 'dt', club: 'PSG' },
+  { id: 'flick', name: 'Flick', fullName: 'Hansi Flick', nationality: 'Alemania', zone: 'medio', era: 'actual', role: 'dt', club: 'Barcelona' },
+  { id: 'conte', name: 'Conte', fullName: 'Antonio Conte', nationality: 'Italia', zone: 'medio', era: 'actual', role: 'dt', club: 'Napoli' },
+  { id: 'arteta', name: 'Arteta', fullName: 'Mikel Arteta', nationality: 'España', zone: 'medio', era: 'actual', role: 'dt', club: 'Arsenal' },
+  { id: 'capello', name: 'Capello', fullName: 'Fabio Capello', nationality: 'Italia', zone: 'defensor', era: 'moderno', role: 'dt', club: 'Real Madrid' },
+  { id: 'lippi', name: 'Lippi', fullName: 'Marcello Lippi', nationality: 'Italia', zone: 'medio', era: 'moderno', role: 'dt', club: 'Juventus', tags: ['mundial'] },
+  { id: 'van-gaal', name: 'Van Gaal', fullName: 'Louis van Gaal', nationality: 'Países Bajos', zone: 'defensor', era: 'moderno', role: 'dt', club: 'Manchester United' },
 ];

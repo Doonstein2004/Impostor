@@ -25,6 +25,8 @@ export interface GameConfig {
   eras: Era[];
   /** Roles incluidos en el pool. Vacío = todas. */
   roles: Role[];
+  /** Clubes incluidos en el pool (por nombre exacto). Vacío = todos. */
+  clubs?: string[];
   /** Cantidad de impostores en la partida. */
   impostorCount: number;
   /**
@@ -42,18 +44,26 @@ export interface GameConfig {
   maxClueRounds?: number;
   /** Segundos para la fase de votación (0 = sin límite). */
   voteSeconds?: number;
+  /**
+   * Modo de comunicación durante la partida:
+   * - 'texto': chat escrito en la sala.
+   * - 'audio': sala de audio (LiveKit, pendiente de implementar).
+   */
+  commMode?: 'texto' | 'audio';
 }
 
 export const DEFAULT_CONFIG: GameConfig = {
   zones: [],
   eras: [],
   roles: ['jugador', 'dt'],
+  clubs: [],
   impostorCount: 1,
   impostorHint: 'nada',
   turnSeconds: 30,
   maxRounds: 3,
   maxClueRounds: 3,
   voteSeconds: 60,
+  commMode: 'texto',
 };
 
 export type RoomStatus = 'lobby' | 'playing' | 'voting' | 'impostorGuessing' | 'reveal' | 'finished';

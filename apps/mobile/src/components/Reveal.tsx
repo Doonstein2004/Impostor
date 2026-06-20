@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useSession } from '@/lib/session';
+import { useChatInset } from '@/lib/useChatDock';
 import { POSITION_COLORS } from './types';
 import type { RoomView } from './types';
 
@@ -58,6 +59,7 @@ function RankingRow({ player, rank, prevScore, animated }: {
 export function Reveal({ room }: { room: RoomView }) {
   const { clientId } = useSession();
   const isHost = room.hostClientId === clientId;
+  const chatInset = useChatInset(24);
   const data = useQuery(
     api.game.getReveal,
     room.currentRoundId ? { roundId: room.currentRoundId } : 'skip',
@@ -89,6 +91,12 @@ export function Reveal({ room }: { room: RoomView }) {
 
   // Ranking actual ordenado por score
   const ranking = [...room.players].sort((a, b) => b.score - a.score);
+
+  // Detalle de votos: cada acusado, cuántos votos y quién lo votó.
+  const nameById = new Map(room.players.map((p) => [p.clientId, p.name]));
+  const voteEntries = Object.entries(data?.votersByTarget ?? {})
+    .map(([target, voters]) => ({ target, voters, count: voters.length }))
+    .sort((a, b) => b.count - a.count);
 
   return (
     <Screen scroll>
@@ -175,6 +183,64 @@ export function Reveal({ room }: { room: RoomView }) {
         </Card>
       </Animated.View>
 
+      {/* Detalle de votación */}
+      {voteEntries.length > 0 && (
+        <Animated.View entering={FadeInDown.delay(900).duration(400)} className="mb-4">
+          <View className="flex-row items-center gap-2 mb-2">
+            <Text className="text-lg">🗳️</Text>
+            <Text variant="title">Votos</Text>
+            <Text variant="muted" className="text-xs">· {data?.totalVotes ?? 0} en total</Text>
+          </View>
+          <Card className="gap-2.5">
+            {voteEntries.map(({ target, voters, count }) => {
+              const isImpostor = impostorSet.has(target);
+              const isEjected = data?.ejectedClientId === target;
+              return (
+                <View
+                  key={target}
+                  className={`rounded-xl border px-3 py-2.5 gap-1.5
+                    ${isImpostor ? 'border-impostor-500/40 bg-impostor-500/5' : 'border-surface-border bg-surface-soft'}`}
+                >
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-2 flex-1">
+                      <Text variant="body" className="font-display" numberOfLines={1}>
+                        {nameById.get(target) ?? '—'}
+                        {target === clientId ? ' (vos)' : ''}
+                      </Text>
+                      {isImpostor && (
+                        <View className="px-1.5 py-0.5 rounded-full bg-impostor-500/15 border border-impostor-500/40">
+                          <Text variant="label" className="text-impostor-400 text-xs">IMPOSTOR</Text>
+                        </View>
+                      )}
+                      {isEjected && (
+                        <View className="px-1.5 py-0.5 rounded-full bg-gold-500/15 border border-gold-500/40">
+                          <Text variant="label" className="text-gold-400 text-xs">EXPULSADO</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View className="flex-row items-center gap-1">
+                      <Text variant="title" className={isImpostor ? 'text-impostor-400' : 'text-pitch-400'}>
+                        {count}
+                      </Text>
+                      <Text variant="muted" className="text-xs">voto{count !== 1 ? 's' : ''}</Text>
+                    </View>
+                  </View>
+                  <View className="flex-row flex-wrap gap-1.5">
+                    {voters.map((voter) => (
+                      <View key={voter} className="px-2 py-0.5 rounded-full border border-surface-border bg-surface-card">
+                        <Text variant="label" className="text-zinc-400 text-xs">
+                          {nameById.get(voter) ?? '—'}{voter === clientId ? ' (vos)' : ''}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
+          </Card>
+        </Animated.View>
+      )}
+
       {/* Ranking */}
       <Animated.View entering={FadeInDown.delay(1000)}>
         <View className="flex-row items-center gap-2 mb-3">
@@ -247,6 +313,7 @@ export function Reveal({ room }: { room: RoomView }) {
           </Card>
         )}
       </Animated.View>
+      <View style={{ height: chatInset }} />
     </Screen>
   );
 }

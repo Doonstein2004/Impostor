@@ -21,6 +21,32 @@ export function queryCharacters(filters: {
   });
 }
 
+/**
+ * Algunos personajes (sobre todo DTs) tienen una selección nacional en `club`.
+ * Las excluimos de la lista de clubes seleccionables del lobby.
+ */
+const NATIONAL_TEAMS = new Set<string>([
+  'Argentina', 'Brasil', 'Uruguay', 'España', 'Portugal', 'Francia', 'Alemania',
+  'Italia', 'Inglaterra', 'Países Bajos', 'Colombia', 'México', 'URSS', 'Hungría',
+  'Irlanda del Norte', 'Croacia', 'Bélgica', 'Chile', 'Polonia',
+]);
+
+/** Clubes con al menos `minCount` personajes, para ofrecerlos como filtro en el lobby. */
+export function popularClubs(minCount = 3): string[] {
+  const counts: Record<string, number> = {};
+  for (const c of CHARACTERS) {
+    if (!c.club || NATIONAL_TEAMS.has(c.club)) continue;
+    counts[c.club] = (counts[c.club] ?? 0) + 1;
+  }
+  return Object.entries(counts)
+    .filter(([, n]) => n >= minCount)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([club]) => club);
+}
+
+/** Lista precomputada de clubes seleccionables (>= 3 personajes). */
+export const SELECTABLE_CLUBS = popularClubs();
+
 /** Conteo por categoría, útil para mostrar disponibilidad en el lobby. */
 export function countsByCategory() {
   const byZone: Record<string, number> = {};

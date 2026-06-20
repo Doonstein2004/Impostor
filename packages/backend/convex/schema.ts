@@ -21,6 +21,8 @@ export const gameConfigValidator = v.object({
   zones: v.array(zoneValidator),
   eras: v.array(eraValidator),
   roles: v.array(roleValidator),
+  /** Clubes incluidos en el pool (nombre exacto). Vacío = todos. */
+  clubs: v.optional(v.array(v.string())),
   impostorCount: v.number(),
   impostorHint: v.union(v.literal('nada'), v.literal('pista'), v.literal('similar')),
   turnSeconds: v.number(),
@@ -29,6 +31,8 @@ export const gameConfigValidator = v.object({
   maxClueRounds: v.optional(v.number()),
   /** Segundos para votar (0 = sin límite). */
   voteSeconds: v.optional(v.number()),
+  /** Modo de comunicación: 'texto' (chat) o 'audio' (sala de voz). */
+  commMode: v.optional(v.union(v.literal('texto'), v.literal('audio'))),
 });
 
 export const roomStatusValidator = v.union(
@@ -128,4 +132,13 @@ export default defineSchema({
   })
     .index('by_round', ['roundId'])
     .index('by_round_voter', ['roundId', 'voterClientId']),
+
+  /** Mensajes del chat de sala (persisten durante toda la sesión de la sala). */
+  messages: defineTable({
+    roomId: v.id('rooms'),
+    clientId: v.string(),
+    name: v.string(),
+    text: v.string(),
+    createdAt: v.number(),
+  }).index('by_room', ['roomId']),
 });

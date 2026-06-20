@@ -20,7 +20,8 @@ export function Screen({ children, scroll = false, className = '', noPadding = f
       className={`flex-1 ${pad}`}
       contentContainerStyle={{ paddingBottom: 32 }}
       keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
+      // En web mostramos la barra para que se pueda scrollear con el mouse.
+      showsVerticalScrollIndicator={Platform.OS === 'web'}
     >
       {children}
     </ScrollView>

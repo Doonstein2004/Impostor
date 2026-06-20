@@ -362,6 +362,17 @@ export const getReveal = query({
   handler: async (ctx, { roundId }) => {
     const round = await ctx.db.get(roundId);
     if (!round || round.status !== 'reveal') return null;
+
+    // Detalle de votos: cuántos recibió cada jugador y quién votó por él.
+    const voteRows = await ctx.db
+      .query('votes')
+      .withIndex('by_round', (q) => q.eq('roundId', roundId))
+      .collect();
+    const votersByTarget: Record<string, string[]> = {};
+    for (const r of voteRows) {
+      (votersByTarget[r.targetClientId] ??= []).push(r.voterClientId);
+    }
+
     return {
       impostorClientIds: round.impostorClientIds,
       secretCharacterId: round.secretCharacterId,
@@ -369,6 +380,8 @@ export const getReveal = query({
       ejectedClientId: round.ejectedClientId ?? null,
       innocentsWin: round.innocentsWin ?? false,
       impostorWonGuess: round.impostorWonGuess ?? null,
+      votersByTarget,
+      totalVotes: voteRows.length,
     };
   },
 });

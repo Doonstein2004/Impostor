@@ -25,6 +25,7 @@ export function filterPool(all: readonly Character[], config: GameConfig): Chara
     if (config.zones.length && !config.zones.includes(c.zone)) return false;
     if (config.eras.length && !config.eras.includes(c.era)) return false;
     if (config.roles.length && !config.roles.includes(c.role)) return false;
+    if (config.clubs?.length && (!c.club || !config.clubs.includes(c.club))) return false;
     return true;
   });
 }

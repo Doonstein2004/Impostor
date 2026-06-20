@@ -4,6 +4,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   TextInput,
@@ -16,7 +17,6 @@ import Animated, {
   FadeIn,
   FadeInDown,
   FadeInUp,
-  FadeOutDown,
   ZoomIn,
   interpolateColor,
   useAnimatedStyle,
@@ -28,6 +28,7 @@ import Animated, {
 import { router } from 'expo-router';
 import { useSession } from '@/lib/session';
 import { useCountdown } from '@/lib/useCountdown';
+import { useChatInset } from '@/lib/useChatDock';
 import { CLUE_EMOJIS, POSITION_COLORS } from './types';
 import type { RoomView } from './types';
 
@@ -249,7 +250,11 @@ function MyCardStrip({ card }: { card: any }) {
         numberOfLines={1}
       >
         {isImpostor
-          ? (charName ? `Disimulá con: ${charName}` : 'Sin pista — improvisá')
+          ? (charName
+              ? `Disimulá con: ${charName}`
+              : card.hint
+              ? `Pista: ${card.hint}`
+              : 'Sin pista — improvisá')
           : (charName ?? '—')}
       </Text>
     </Animated.View>
@@ -423,13 +428,14 @@ function PlayerRow({
   );
 }
 
-// ─── Clue notification toast ───────────────────────────────────────────────
-// Floats above the screen — one at a time, replaces when a new clue comes in
+// ─── Clue card (persistent, with always-visible reactions) ────────────────
+// Una pista con su fila completa de reacciones, siempre visible. Reemplaza al
+// toast flotante: las pistas y sus reacciones se quedan en pantalla.
 
-function ClueNotification({ clue, myClientId, onDismiss }: {
+function ClueCard({ clue, myClientId, isLatest }: {
   clue: any;
   myClientId: string;
-  onDismiss: () => void;
+  isLatest?: boolean;
 }) {
   const react = useMutation(api.clues.react);
   const myEmoji: string | undefined = clue.reactorEmojis?.[myClientId];
@@ -437,189 +443,132 @@ function ClueNotification({ clue, myClientId, onDismiss }: {
 
   return (
     <Animated.View
-      entering={FadeInDown.springify().damping(14)}
-      exiting={FadeOutDown.duration(150)}
-      style={{ borderRadius: 20, overflow: 'hidden', elevation: 12 }}
-    >
-      {/* Thick accent border via colored container */}
-      <View
-        style={{
-          borderWidth: 2,
-          borderColor: isMe ? '#f59e0b' : '#3f3f46',
-          borderRadius: 20,
-          overflow: 'hidden',
-          backgroundColor: '#18181b',
-        }}
-      >
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row', alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16, paddingVertical: 8,
-            backgroundColor: isMe ? 'rgba(245,158,11,0.12)' : '#27272a',
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View
-              style={{
-                height: 24, width: 24, borderRadius: 12,
-                backgroundColor: isMe ? 'rgba(245,158,11,0.2)' : '#3f3f46',
-                borderWidth: 1, borderColor: isMe ? 'rgba(245,158,11,0.4)' : '#52525b',
-                alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 10, color: isMe ? '#fbbf24' : '#fff', fontWeight: '700' }}>
-                {clue.playerName?.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <Text style={{ fontSize: 11, color: isMe ? '#fbbf24' : '#a1a1aa', letterSpacing: 2, fontWeight: '600' }}>
-              {(clue.playerName ?? '').toUpperCase()}{isMe ? ' · VOS' : ''}
-            </Text>
-          </View>
-          <Pressable onPress={onDismiss} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-            <Text style={{ fontSize: 20, color: '#52525b', lineHeight: 24 }}>×</Text>
-          </Pressable>
-        </View>
-
-        {/* Clue word — main focus */}
-        <View style={{ alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16, backgroundColor: '#18181b' }}>
-          <Text
-            style={{
-              fontSize: 38, fontWeight: '700', letterSpacing: 1, textAlign: 'center',
-              color: isMe ? '#fde68a' : '#ffffff',
-            }}
-            numberOfLines={2}
-            adjustsFontSizeToFit
-            minimumFontScale={0.5}
-          >
-            {clue.text}
-          </Text>
-        </View>
-
-        {/* Reaction row */}
-        <View style={{ borderTopWidth: 1, borderTopColor: '#27272a', backgroundColor: '#18181b', paddingVertical: 4 }}>
-          <Text style={{ fontSize: 9, color: '#52525b', letterSpacing: 1.5, textAlign: 'center', paddingTop: 4, paddingBottom: 2 }}>
-            REACCIONAR
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingVertical: 6 }}
-          >
-            {CLUE_EMOJIS.map((emoji) => {
-              const count = (clue.reactionCounts as ReactionEntry[] | undefined)
-                ?.find((r) => r.emoji === emoji)?.count ?? 0;
-              const active = myEmoji === emoji;
-              return (
-                <Pressable
-                  key={emoji}
-                  onPress={() => react({ clueId: clue._id, reactorClientId: myClientId, emoji })}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 5,
-                    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
-                    borderWidth: active ? 1.5 : 1,
-                    borderColor: active ? '#f59e0b' : '#3f3f46',
-                    backgroundColor: active ? 'rgba(245,158,11,0.22)' : 'rgba(39,39,42,0.9)',
-                    minWidth: 44,
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 18 }}>{emoji}</Text>
-                  <Text style={{ fontSize: 13, color: active ? '#fbbf24' : count > 0 ? '#d4d4d8' : '#52525b', fontWeight: '700', minWidth: 14, textAlign: 'center' }}>
-                    {count > 0 ? count : ''}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </View>
-    </Animated.View>
-  );
-}
-
-// ─── Compact clue row (allSpoke summary list) ─────────────────────────────
-
-function ClueRow({ clue, myClientId, index }: {
-  clue: any;
-  myClientId: string;
-  index: number;
-}) {
-  const react = useMutation(api.clues.react);
-  const myEmoji: string | undefined = clue.reactorEmojis?.[myClientId];
-  const isMe = clue.clientId === myClientId;
-  const topReactions = ((clue.reactionCounts as ReactionEntry[] | undefined) ?? [])
-    .filter((r) => r.count > 0)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 3);
-
-  return (
-    <Animated.View
-      entering={FadeInDown.delay(index * 45).springify()}
+      entering={FadeInDown.springify().damping(16)}
       style={{
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 12, paddingVertical: 10, gap: 10,
-        backgroundColor: isMe ? 'rgba(245,158,11,0.05)' : index % 2 === 0 ? '#1c1c1e' : '#18181b',
-        borderTopWidth: index > 0 ? 1 : 0,
-        borderTopColor: '#27272a',
+        borderRadius: 18,
+        borderWidth: 1.5,
+        borderColor: isMe ? 'rgba(245,158,11,0.5)' : isLatest ? '#52525b' : '#27272a',
+        backgroundColor: isMe ? 'rgba(245,158,11,0.06)' : '#18181b',
+        overflow: 'hidden',
       }}
     >
-      {/* Name + clue stacked */}
-      <View style={{ flex: 1, gap: 1 }}>
-        <Text
-          style={{ fontSize: 10, fontWeight: '600', letterSpacing: 0.5,
-            color: isMe ? '#d97706' : '#71717a' }}
-          numberOfLines={1}
+      {/* Header — autor */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 12 }}>
+        <View
+          style={{
+            height: 26, width: 26, borderRadius: 13,
+            alignItems: 'center', justifyContent: 'center',
+            backgroundColor: isMe ? 'rgba(245,158,11,0.2)' : '#27272a',
+            borderWidth: 1, borderColor: isMe ? 'rgba(245,158,11,0.4)' : '#3f3f46',
+          }}
         >
+          <Text style={{ fontSize: 11, fontWeight: '700', color: isMe ? '#fbbf24' : '#d4d4d8' }}>
+            {(clue.playerName ?? '?').charAt(0).toUpperCase()}
+          </Text>
+        </View>
+        <Text style={{ fontSize: 11, letterSpacing: 1.5, fontWeight: '700', color: isMe ? '#d97706' : '#71717a' }}>
           {(clue.playerName ?? '?').toUpperCase()}{isMe ? ' · VOS' : ''}
         </Text>
+        {isLatest && (
+          <View style={{ marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)' }}>
+            <Text style={{ fontSize: 8, letterSpacing: 1.5, fontWeight: '700', color: '#d97706' }}>NUEVA</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Texto de la pista — línea propia, con aire */}
+      <View style={{ paddingHorizontal: 14, paddingVertical: 14 }}>
         <Text
-          style={{ fontSize: 17, fontWeight: '700', letterSpacing: 0.3,
-            color: isMe ? '#fde68a' : '#ffffff' }}
-          numberOfLines={1}
+          style={{
+            fontSize: 24, fontWeight: '700', letterSpacing: 0.3, lineHeight: 30,
+            color: isMe ? '#fde68a' : '#ffffff',
+          }}
         >
           {clue.text}
         </Text>
       </View>
 
-      {/* Reaction chips — tap to react, shows existing counts */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ flexShrink: 0, maxWidth: 110 }}
-        contentContainerStyle={{ flexDirection: 'row', gap: 3, alignItems: 'center' }}
-      >
-        {topReactions.length > 0 ? (
-          topReactions.map((r) => (
-            <Pressable
-              key={r.emoji}
-              onPress={() => react({ clueId: clue._id, reactorClientId: myClientId, emoji: r.emoji })}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 2,
-                paddingHorizontal: 5, paddingVertical: 2, borderRadius: 999,
-                borderWidth: 1,
-                borderColor: myEmoji === r.emoji ? '#f59e0b' : '#3f3f46',
-                backgroundColor: myEmoji === r.emoji ? 'rgba(245,158,11,0.15)' : 'transparent',
-              }}
-            >
-              <Text style={{ fontSize: 11 }}>{r.emoji}</Text>
-              <Text style={{ fontSize: 10, color: '#71717a' }}>{r.count}</Text>
-            </Pressable>
-          ))
-        ) : (
-          /* No reactions yet — show a dim first emoji as invite */
-          !isMe && (
-            <Pressable
-              onPress={() => react({ clueId: clue._id, reactorClientId: myClientId, emoji: CLUE_EMOJIS[0]! })}
-              style={{ opacity: 0.3 }}
-            >
-              <Text style={{ fontSize: 14 }}>{CLUE_EMOJIS[0]}</Text>
-            </Pressable>
-          )
-        )}
-      </ScrollView>
+      {/* Fila de reacciones — siempre visible y persistente */}
+      <View style={{ borderTopWidth: 1, borderTopColor: '#27272a', paddingHorizontal: 10, paddingVertical: 8 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ flexDirection: 'row', gap: 6 }}
+        >
+          {CLUE_EMOJIS.map((emoji) => {
+            const count = (clue.reactionCounts as ReactionEntry[] | undefined)
+              ?.find((r) => r.emoji === emoji)?.count ?? 0;
+            const active = myEmoji === emoji;
+            return (
+              <Pressable
+                key={emoji}
+                onPress={() => react({ clueId: clue._id, reactorClientId: myClientId, emoji })}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 5,
+                  borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6,
+                  borderWidth: active ? 1.5 : 1,
+                  borderColor: active ? '#f59e0b' : '#3f3f46',
+                  backgroundColor: active ? 'rgba(245,158,11,0.22)' : 'rgba(39,39,42,0.6)',
+                }}
+              >
+                <Text style={{ fontSize: 17 }}>{emoji}</Text>
+                {count > 0 && (
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fbbf24' : '#d4d4d8' }}>
+                    {count}
+                  </Text>
+                )}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
     </Animated.View>
+  );
+}
+
+// ─── Clues feed (persistente, agrupado por vuelta) ────────────────────────
+// Muestra TODAS las pistas de la ronda, agrupadas por vuelta, para tenerlas
+// siempre presentes durante la discusión.
+
+function CluesFeed({ clues, myClientId, currentTurn }: {
+  clues: any[];
+  myClientId: string;
+  currentTurn: number;
+}) {
+  if (!clues.length) return null;
+  const turns = [...new Set(clues.map((c) => c.turn as number))].sort((a, b) => a - b);
+
+  return (
+    <View style={{ gap: 14 }}>
+      {turns.map((turn) => {
+        const turnClues = clues
+          .filter((c) => c.turn === turn)
+          .sort((a, b) => a._creationTime - b._creationTime);
+        if (!turnClues.length) return null;
+        const isCurrent = turn === currentTurn;
+        return (
+          <View key={turn} style={{ gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: isCurrent ? 'rgba(245,158,11,0.7)' : '#3f3f46' }} />
+              <Text style={{ fontSize: 11, letterSpacing: 2, fontWeight: '700', color: isCurrent ? '#d97706' : '#52525b' }}>
+                VUELTA {turn}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#3f3f46' }}>{turnClues.length}</Text>
+            </View>
+            <View style={{ gap: 8 }}>
+              {turnClues.map((clue, i) => (
+                <ClueCard
+                  key={clue._id}
+                  clue={clue}
+                  myClientId={myClientId}
+                  isLatest={isCurrent && i === turnClues.length - 1}
+                />
+              ))}
+            </View>
+          </View>
+        );
+      })}
+    </View>
   );
 }
 
@@ -629,6 +578,7 @@ export function GameRound({ room }: { room: RoomView }) {
   const { clientId, name } = useSession();
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId!;
+  const chatInset = useChatInset(24);
 
   const card = useQuery(api.game.getMyCard, { roundId, clientId });
   const round = useQuery(api.game.getRound, { roundId });
@@ -645,9 +595,7 @@ export function GameRound({ room }: { room: RoomView }) {
   const [busy, setBusy] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  // Solo guardamos el ID de la pista a mostrar; el objeto completo se lee siempre del live query
-  const [notifClueId, setNotifClueId] = useState<string | null>(null);
-  const [notifDismissed, setNotifDismissed] = useState(false);
+  const [showCard, setShowCard] = useState(false);
   const inputRef = useRef<TIType>(null);
 
   const currentTurn = round?.currentTurn ?? 1;
@@ -697,27 +645,9 @@ export function GameRound({ room }: { room: RoomView }) {
     hasAutoSkipped.current = false;
     setText('');
     setConfirmCancel(false);
-    setNotifClueId(null);
-    setNotifDismissed(false);
+    setShowCard(false);
     inputRef.current?.clear();
   }, [currentSpeakerId]);
-
-  // Track latest clue ID (only advance when a new clue is added, reset dismissed flag)
-  useEffect(() => {
-    if (!clues) return;
-    const turnClues = clues.filter((c) => c.turn === currentTurn);
-    const latest = turnClues[turnClues.length - 1];
-    if (!latest) return;
-    if (latest._id !== notifClueId) {
-      setNotifClueId(latest._id);
-      setNotifDismissed(false);
-    }
-  }, [clues?.length, currentTurn]);
-
-  // Always read the live clue object from Convex (reactions update in real-time)
-  const notifClue = notifClueId && !notifDismissed
-    ? (clues?.find((c) => c._id === notifClueId) ?? null)
-    : null;
 
   async function handleSubmit() {
     const trimmed = text.trim();
@@ -804,8 +734,6 @@ export function GameRound({ room }: { room: RoomView }) {
 
   // ── allSpoke — auto-avance o pantalla de decisión ────────────────────
   if (allSpoke) {
-    const turnClues = clues.filter((c) => c.turn === currentTurn);
-
     // Si hay más vueltas por hacer, solo mostrar transición (el host auto-avanza)
     if (mustDoMoreVueltas) {
       return (
@@ -826,28 +754,39 @@ export function GameRound({ room }: { room: RoomView }) {
     return (
       <Screen scroll>
         {Header}
-        <MyCardStrip card={card} />
 
-        <Animated.View entering={BounceIn.springify()} className="items-center py-3 gap-2">
-          <View className="flex-row gap-3 items-center w-full">
-            <View className="h-px flex-1 bg-gold-500/20" />
-            <Text variant="display" className="text-gold-400 tracking-widest px-2" style={{ fontSize: 17 }}>
-              MESA COMPLETA
-            </Text>
-            <View className="h-px flex-1 bg-gold-500/20" />
-          </View>
-          <Text variant="muted" className="text-center text-xs">
-            {maxClueRounds > 0
-              ? `${maxClueRounds} vuelta${maxClueRounds > 1 ? 's' : ''} completadas — hora de votar`
-              : `Vuelta ${currentTurn} completa — todos dieron su pista`}
+        {/* Encabezado compacto */}
+        <Animated.View entering={FadeIn.duration(250)} className="flex-row items-center gap-2 mb-2">
+          <Text variant="display" className="text-gold-400 tracking-widest" style={{ fontSize: 15 }}>
+            MESA COMPLETA
+          </Text>
+          <Text variant="muted" className="text-xs flex-1" numberOfLines={1}>
+            · {maxClueRounds > 0 ? 'hora de votar' : `vuelta ${currentTurn} lista`}
           </Text>
         </Animated.View>
 
-        {isHost && (
-          <Animated.View entering={FadeInDown.delay(300)} className="gap-2.5 mb-4">
+        <MyCardStrip card={card} />
+
+        {/* Pistas primero — lo importante para discutir, sin scroll */}
+        {clues.length > 0 && (
+          <Animated.View entering={FadeIn.duration(250)} className="mb-3">
+            <View className="flex-row items-center gap-2 mb-2">
+              <View className="w-0.5 h-4 rounded-full bg-gold-500/60" />
+              <Text variant="label" className="text-zinc-500 text-xs tracking-widest">
+                PISTAS DE LA RONDA
+              </Text>
+              <Text variant="label" className="text-zinc-700 text-xs">{clues.length}</Text>
+            </View>
+            <CluesFeed clues={clues} myClientId={clientId} currentTurn={currentTurn} />
+          </Animated.View>
+        )}
+
+        {/* Acciones del host / aviso */}
+        {isHost ? (
+          <Animated.View entering={FadeInDown.delay(150)} className="gap-2.5 mb-2">
             {maxClueRounds === 0 && (
               <Button
-                title={`🔄 Nueva vuelta de pistas (vuelta ${currentTurn + 1})`}
+                title={`🔄 Nueva vuelta (vuelta ${currentTurn + 1})`}
                 variant="secondary"
                 onPress={() => nextClueRound({ roomId: room._id, clientId })}
               />
@@ -858,48 +797,32 @@ export function GameRound({ room }: { room: RoomView }) {
               onPress={() => startVoting({ roomId: room._id, clientId })}
             />
           </Animated.View>
-        )}
-
-        {!isHost && (
-          <Card className="items-center mb-4 py-3 gap-1">
-            <Text variant="muted" className="text-center text-sm">
-              El host abrirá la votación
-            </Text>
-            <Text variant="label" className="text-zinc-600 text-xs text-center">
-              Discutan entre ustedes quién es el impostor
+        ) : (
+          <Card className="items-center mb-2 py-2.5 gap-0.5">
+            <Text variant="muted" className="text-center text-xs">
+              El host abrirá la votación — discutan quién es el impostor
             </Text>
           </Card>
         )}
 
-
-        {/* Compact clue rows — fixed height per player, no accumulation */}
-        {turnClues.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(400)}>
-            <View className="flex-row items-center gap-2 mb-2">
-              <View className="w-0.5 h-4 rounded-full bg-gold-500/60" />
-              <Text variant="label" className="text-zinc-500 text-xs tracking-widest">
-                PISTAS · VUELTA {currentTurn}
-              </Text>
-              <Text variant="label" className="text-zinc-700 text-xs">{turnClues.length}</Text>
-            </View>
-            <View
-              style={{
-                borderRadius: 16, overflow: 'hidden',
-                borderWidth: 1, borderColor: '#27272a',
-              }}
-            >
-              {turnClues.map((clue, i) => (
-                <ClueRow key={clue._id} clue={clue} myClientId={clientId} index={i} />
-              ))}
-            </View>
-          </Animated.View>
-        )}
+        <View style={{ height: chatInset }} />
       </Screen>
     );
   }
 
-  // ── Active turn — notification floats above content ────────────────────
-  const showNotif = !!notifClue && !allSpoke && !notifDismissed;
+  // ── Active turn — feed persistente de pistas (arriba, para no perderlas) ──
+  const cluesFeed = clues.length > 0 ? (
+    <View className="mt-4">
+      <View className="flex-row items-center gap-2 mb-2">
+        <View className="w-0.5 h-4 rounded-full bg-gold-500/60" />
+        <Text variant="label" className="text-zinc-500 text-xs tracking-widest">
+          PISTAS HASTA AHORA
+        </Text>
+        <Text variant="label" className="text-zinc-700 text-xs">{clues.length}</Text>
+      </View>
+      <CluesFeed clues={clues} myClientId={clientId} currentTurn={currentTurn} />
+    </View>
+  ) : null;
 
   return (
     <Screen noPadding>
@@ -907,9 +830,9 @@ export function GameRound({ room }: { room: RoomView }) {
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: 16, paddingTop: 8,
-          paddingBottom: showNotif ? 200 : 32,
+          paddingBottom: chatInset,
         }}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={Platform.OS === 'web'}
         keyboardShouldPersistTaps="handled"
       >
         {Header}
@@ -935,13 +858,11 @@ export function GameRound({ room }: { room: RoomView }) {
               <ShotClock timeLeft={timeLeft} animatedProgress={animatedProgress} />
             )}
 
-            {/* Carta con el personaje — ya revelada, sin tap requerido */}
-            <View className="my-2">
-              <PokerCard card={card} speakerIndex={currentIndex} />
-            </View>
+            {/* Tu personaje — referencia compacta (sin scroll) */}
+            <MyCardStrip card={card} />
 
-            {/* Input de pista */}
-            <Animated.View entering={FadeInUp.delay(150).springify()}>
+            {/* Input de pista — arriba, accesible al instante */}
+            <Animated.View entering={FadeInUp.delay(120).springify()}>
               <Card className="gap-2 border-gold-500/30 bg-gold-500/5">
                 <Text variant="label" className="text-gold-500 tracking-widest text-xs">
                   ✍️ ESCRIBÍ TU PISTA
@@ -978,6 +899,21 @@ export function GameRound({ room }: { room: RoomView }) {
                 <Text variant="label" className="text-zinc-700 text-xs">{60 - text.length} restantes</Text>
               </Card>
             </Animated.View>
+
+            {/* Ver carta completa — opcional, colapsado por defecto */}
+            <Pressable onPress={() => setShowCard((s) => !s)} className="items-center py-2">
+              <Text variant="label" className="text-zinc-600 text-xs tracking-widest">
+                {showCard ? '▾ OCULTAR CARTA' : '▸ VER MI CARTA'}
+              </Text>
+            </Pressable>
+            {showCard && (
+              <View className="mb-2">
+                <PokerCard card={card} speakerIndex={currentIndex} />
+              </View>
+            )}
+
+            {/* Pistas ya dadas — debajo de tu input */}
+            {cluesFeed}
           </>
         ) : (
           <>
@@ -990,6 +926,9 @@ export function GameRound({ room }: { room: RoomView }) {
             <View className="my-2">
               <SpeakerSpotlight name={currentSpeakerName} speakerIndex={currentIndex} />
             </View>
+
+            {/* Pistas ya dadas — arriba, para tenerlas presentes mientras se escucha */}
+            {cluesFeed}
 
             {/* Tu personaje — referencia discreta en strip */}
             <MyCardStrip card={card} />
@@ -1018,21 +957,6 @@ export function GameRound({ room }: { room: RoomView }) {
           </>
         )}
       </ScrollView>
-
-      {/* Notificación flotante de pista */}
-      {showNotif && (
-        <View
-          style={{ position: 'absolute', bottom: 20, left: 16, right: 16 }}
-          pointerEvents="box-none"
-        >
-          <ClueNotification
-            key={notifClue._id}
-            clue={notifClue}
-            myClientId={clientId}
-            onDismiss={() => setNotifDismissed(true)}
-          />
-        </View>
-      )}
     </Screen>
   );
 }
