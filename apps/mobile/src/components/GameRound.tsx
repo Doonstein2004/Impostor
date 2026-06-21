@@ -29,6 +29,8 @@ import { router } from 'expo-router';
 import { useSession } from '@/lib/session';
 import { useCountdown } from '@/lib/useCountdown';
 import { useChatInset } from '@/lib/useChatDock';
+import { runAction, toast } from '@/lib/useToast';
+import { friendlyError } from '@/lib/errors';
 import { CLUE_EMOJIS, POSITION_COLORS } from './types';
 import type { RoomView } from './types';
 
@@ -538,7 +540,8 @@ function CluesFeed({ clues, myClientId, currentTurn }: {
   currentTurn: number;
 }) {
   if (!clues.length) return null;
-  const turns = [...new Set(clues.map((c) => c.turn as number))].sort((a, b) => a - b);
+  // Más recientes primero: vueltas desc y, dentro de cada vuelta, pistas desc.
+  const turns = [...new Set(clues.map((c) => c.turn as number))].sort((a, b) => b - a);
   // Con una sola vuelta el header "VUELTA n" es redundante (ya hay título arriba).
   const showTurnHeader = turns.length > 1;
 
@@ -547,7 +550,7 @@ function CluesFeed({ clues, myClientId, currentTurn }: {
       {turns.map((turn) => {
         const turnClues = clues
           .filter((c) => c.turn === turn)
-          .sort((a, b) => a._creationTime - b._creationTime);
+          .sort((a, b) => b._creationTime - a._creationTime);
         if (!turnClues.length) return null;
         const isCurrent = turn === currentTurn;
         return (
@@ -567,7 +570,7 @@ function CluesFeed({ clues, myClientId, currentTurn }: {
                   key={clue._id}
                   clue={clue}
                   myClientId={myClientId}
-                  isLatest={isCurrent && i === turnClues.length - 1}
+                  isLatest={isCurrent && i === 0}
                 />
               ))}
             </View>
@@ -581,7 +584,7 @@ function CluesFeed({ clues, myClientId, currentTurn }: {
 // ─── Main component ────────────────────────────────────────────────────────
 
 export function GameRound({ room }: { room: RoomView }) {
-  const { clientId, name } = useSession();
+  const { clientId, name, setLeaving } = useSession();
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId!;
   const chatInset = useChatInset(24);
@@ -630,7 +633,7 @@ export function GameRound({ room }: { room: RoomView }) {
   useEffect(() => {
     if (expired && isMyTurn && !hasAutoSkipped.current) {
       hasAutoSkipped.current = true;
-      skipSpeaker({ roundId, clientId });
+      runAction(() => skipSpeaker({ roundId, clientId }), 'No se pudo saltar el turno.');
     }
   }, [expired, isMyTurn]);
 
@@ -642,7 +645,7 @@ export function GameRound({ room }: { room: RoomView }) {
   useEffect(() => {
     if (allSpoke && mustDoMoreVueltas && isHost && !hasAutoAdvanced.current) {
       hasAutoAdvanced.current = true;
-      nextClueRound({ roomId: room._id, clientId });
+      runAction(() => nextClueRound({ roomId: room._id, clientId }), 'No se pudo avanzar de vuelta.');
     }
   }, [allSpoke, mustDoMoreVueltas, isHost]);
 
@@ -662,8 +665,8 @@ export function GameRound({ room }: { room: RoomView }) {
     try {
       await submitClue({ roundId, clientId, playerName: name, text: trimmed });
       setText('');
-    } catch {
-      // Turn may have advanced already
+    } catch (e) {
+      toast.error(friendlyError(e, 'No se pudo enviar tu pista (quizás cambió el turno).'));
     } finally {
       setBusy(false);
     }
@@ -699,7 +702,7 @@ export function GameRound({ room }: { room: RoomView }) {
         confirmCancel ? (
           <View className="flex-row gap-2 items-center">
             <Pressable
-              onPress={() => backToLobby({ roomId: room._id, clientId })}
+              onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId }), 'No se pudo cancelar la ronda.')}
               className="px-2.5 py-1 rounded-lg border border-impostor-500/60 bg-impostor-500/10"
             >
               <Text className="text-impostor-400 text-xs font-display tracking-wide">CANCELAR RONDA</Text>
@@ -718,6 +721,7 @@ export function GameRound({ room }: { room: RoomView }) {
           <View className="flex-row gap-2 items-center">
             <Pressable
               onPress={async () => {
+                setLeaving(true);
                 await leave({ roomId: room._id, clientId });
                 router.replace('/');
               }}
@@ -794,13 +798,13 @@ export function GameRound({ room }: { room: RoomView }) {
               <Button
                 title={`🔄 Nueva vuelta (vuelta ${currentTurn + 1})`}
                 variant="secondary"
-                onPress={() => nextClueRound({ roomId: room._id, clientId })}
+                onPress={() => runAction(() => nextClueRound({ roomId: room._id, clientId }), 'No se pudo iniciar la nueva vuelta.')}
               />
             )}
             <Button
               title="🗳️ Abrir votación"
               variant="danger"
-              onPress={() => startVoting({ roomId: room._id, clientId })}
+              onPress={() => runAction(() => startVoting({ roomId: room._id, clientId }), 'No se pudo abrir la votación.')}
             />
           </Animated.View>
         ) : (
@@ -944,7 +948,7 @@ export function GameRound({ room }: { room: RoomView }) {
                 <Button
                   title="SALTAR TURNO"
                   variant="ghost"
-                  onPress={() => skipSpeaker({ roundId, clientId })}
+                  onPress={() => runAction(() => skipSpeaker({ roundId, clientId }), 'No se pudo saltar el turno.')}
                 />
               </Animated.View>
             )}

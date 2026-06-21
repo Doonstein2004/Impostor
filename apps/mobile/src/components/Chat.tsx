@@ -15,6 +15,8 @@ import {
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useSession } from '@/lib/session';
 import { useChatDock } from '@/lib/useChatDock';
+import { toast } from '@/lib/useToast';
+import { friendlyError } from '@/lib/errors';
 import type { RoomView } from './types';
 
 const WEB_MAX_WIDTH = 430;
@@ -74,8 +76,8 @@ export function GameChat({ room }: { room: RoomView }) {
       await send({ roomId: room._id, clientId, name, text: trimmed });
       setText('');
       setSeen(count + 1); // no contar el propio mensaje como no leído
-    } catch {
-      // mantenemos el texto para reintentar
+    } catch (e) {
+      toast.error(friendlyError(e, 'No se pudo enviar el mensaje.'));
     } finally {
       setBusy(false);
     }

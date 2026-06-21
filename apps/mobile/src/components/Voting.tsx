@@ -8,10 +8,11 @@ import { router } from 'expo-router';
 import { useSession } from '@/lib/session';
 import { useCountdown } from '@/lib/useCountdown';
 import { useChatInset } from '@/lib/useChatDock';
+import { runAction } from '@/lib/useToast';
 import type { RoomView } from './types';
 
 export function Voting({ room }: { room: RoomView }) {
-  const { clientId } = useSession();
+  const { clientId, setLeaving } = useSession();
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId;
   const chatInset = useChatInset(24);
@@ -36,12 +37,20 @@ export function Voting({ room }: { room: RoomView }) {
   );
 
   const hasAutoRevealed = useRef(false);
+  // Auto-revela al expirar el tiempo…
   useEffect(() => {
     if (expired && isHost && !hasAutoRevealed.current && roundId) {
       hasAutoRevealed.current = true;
-      reveal({ roomId: room._id, clientId });
+      runAction(() => reveal({ roomId: room._id, clientId }), 'No se pudo revelar el resultado.');
     }
   }, [expired, isHost]);
+  // …y también apenas votan todos (sin esperar al host).
+  useEffect(() => {
+    if (allVoted && isHost && !hasAutoRevealed.current && roundId) {
+      hasAutoRevealed.current = true;
+      runAction(() => reveal({ roomId: room._id, clientId }), 'No se pudo revelar el resultado.');
+    }
+  }, [allVoted, isHost]);
 
   return (
     <Screen scroll>
@@ -50,7 +59,7 @@ export function Voting({ room }: { room: RoomView }) {
         {confirmLeave ? (
           <View className="flex-row gap-2 items-center">
             <Pressable
-              onPress={async () => { await leave({ roomId: room._id, clientId }); router.replace('/'); }}
+              onPress={async () => { setLeaving(true); await leave({ roomId: room._id, clientId }); router.replace('/'); }}
               className="px-2.5 py-1 rounded-lg border border-impostor-500/60 bg-impostor-500/10"
             >
               <Text className="text-impostor-400 text-xs font-display">SALIR</Text>
@@ -112,7 +121,11 @@ export function Voting({ room }: { room: RoomView }) {
               <Pressable
                 disabled={isMe || !roundId}
                 onPress={() =>
-                  roundId && castVote({ roundId, voterClientId: clientId, targetClientId: p.clientId })
+                  roundId &&
+                  runAction(
+                    () => castVote({ roundId, voterClientId: clientId, targetClientId: p.clientId }),
+                    'No se pudo registrar tu voto.',
+                  )
                 }
               >
                 <Card
@@ -176,7 +189,7 @@ export function Voting({ room }: { room: RoomView }) {
           <Button
             title="🏆 Revelar resultado"
             variant="danger"
-            onPress={() => reveal({ roomId: room._id, clientId })}
+            onPress={() => runAction(() => reveal({ roomId: room._id, clientId }), 'No se pudo revelar el resultado.')}
           />
         </Animated.View>
       )}

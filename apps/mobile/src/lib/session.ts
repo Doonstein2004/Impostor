@@ -12,9 +12,15 @@ interface SessionState {
   name: string;
   hydrated: boolean;
   currentRoomCode: string | null;
+  /** Mensaje "flash" para mostrar al volver al home (ej. "Te expulsaron"). Transitorio. */
+  notice: string | null;
+  /** true mientras el jugador sale por su cuenta (para no confundir con expulsión). Transitorio. */
+  leaving: boolean;
   setName: (name: string) => void;
   setHydrated: () => void;
   setCurrentRoomCode: (code: string | null) => void;
+  setNotice: (notice: string | null) => void;
+  setLeaving: (leaving: boolean) => void;
 }
 
 export const useSession = create<SessionState>()(
@@ -24,9 +30,13 @@ export const useSession = create<SessionState>()(
       name: '',
       hydrated: false,
       currentRoomCode: null,
+      notice: null,
+      leaving: false,
       setName: (name) => set({ name }),
       setHydrated: () => set({ hydrated: true }),
       setCurrentRoomCode: (code) => set({ currentRoomCode: code }),
+      setNotice: (notice) => set({ notice }),
+      setLeaving: (leaving) => set({ leaving }),
     }),
     {
       name: 'impostor-session',

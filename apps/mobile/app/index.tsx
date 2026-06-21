@@ -4,17 +4,19 @@ import { Button, Card, Screen, Text } from '@impostor/ui';
 import { useMutation } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 import { useSession } from '@/lib/session';
+import { friendlyError } from '@/lib/errors';
 
 export default function Home() {
-  const { clientId, name, setName, currentRoomCode, setCurrentRoomCode } = useSession();
+  const { clientId, name, setName, currentRoomCode, setCurrentRoomCode, notice, setNotice } = useSession();
   const createRoom = useMutation(api.rooms.create);
   const joinRoom = useMutation(api.rooms.join);
 
   const { code: codeParam } = useLocalSearchParams<{ code?: string }>();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Si llegan por enlace de invitación (?code=XXXX), precargamos el código.
   useEffect(() => {
@@ -25,27 +27,31 @@ export default function Home() {
   const needName = name.trim().length < 2;
 
   async function handleCreate() {
-    if (needName) return Alert.alert('Falta tu nombre', 'Ingresá un nombre para jugar.');
+    setError(null);
+    setNotice(null);
+    if (needName) { setError('Ingresá tu nombre (mínimo 2 letras) para jugar.'); return; }
     setBusy(true);
     try {
       const res = await createRoom({ clientId, name: name.trim() });
       router.push(`/room/${res.code}`);
     } catch (e) {
-      Alert.alert('Error', String(e));
+      setError(friendlyError(e, 'No se pudo crear la sala. Probá de nuevo.'));
     } finally {
       setBusy(false);
     }
   }
 
   async function handleJoin() {
-    if (needName) return Alert.alert('Falta tu nombre', 'Ingresá un nombre para jugar.');
-    if (code.trim().length < 4) return Alert.alert('Código inválido', 'Revisá el código de la sala.');
+    setError(null);
+    setNotice(null);
+    if (needName) { setError('Ingresá tu nombre (mínimo 2 letras) para jugar.'); return; }
+    if (code.trim().length < 4) { setError('El código tiene que tener al menos 4 caracteres. Revisalo.'); return; }
     setBusy(true);
     try {
       const res = await joinRoom({ code: code.trim().toUpperCase(), clientId, name: name.trim() });
       router.push(`/room/${res.code}`);
     } catch (e) {
-      Alert.alert('No se pudo unir', String(e));
+      setError(friendlyError(e, 'No se pudo unir a la sala. Probá de nuevo.'));
     } finally {
       setBusy(false);
     }
@@ -53,6 +59,26 @@ export default function Home() {
 
   return (
     <Screen scroll>
+      {/* Aviso flash (ej. "Te expulsaron") al volver al home */}
+      {notice && (
+        <View className="mt-4 flex-row items-center gap-2 rounded-2xl border border-impostor-500/40 bg-impostor-500/10 px-4 py-3">
+          <Text className="text-impostor-400 flex-1 text-sm">{notice}</Text>
+          <Pressable onPress={() => setNotice(null)} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <Text className="text-impostor-400 text-xl">×</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Error de acción (código mal, falta nombre, etc.) */}
+      {error && (
+        <View className="mt-4 flex-row items-center gap-2 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
+          <Text className="text-yellow-400 flex-1 text-sm">⚠️ {error}</Text>
+          <Pressable onPress={() => setError(null)} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <Text className="text-yellow-400 text-xl">×</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* Tarjeta de invitación si llegaron por enlace */}
       {invited && (
         <Card className="mt-4 mb-2 gap-3 border-gold-500/40 bg-gold-500/5">

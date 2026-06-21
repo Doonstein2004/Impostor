@@ -1,12 +1,21 @@
 import { api } from '@impostor/backend/api';
+import { filterPool } from '@impostor/core';
+import { CHARACTERS } from '@impostor/data';
 import { Button, Card, Screen, Text } from '@impostor/ui';
 import { useMutation, useQuery } from 'convex/react';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 import Animated, { BounceIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSession } from '@/lib/session';
 import { useChatInset } from '@/lib/useChatDock';
+import { toast } from '@/lib/useToast';
+import { friendlyError } from '@/lib/errors';
 import type { RoomView } from './types';
+
+/** Normaliza para comparar/buscar sin tildes ni mayúsculas. */
+function norm(s: string): string {
+  return s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
 
 export function ImpostorGuess({ room }: { room: RoomView }) {
   const { clientId } = useSession();
@@ -19,6 +28,17 @@ export function ImpostorGuess({ room }: { room: RoomView }) {
 
   const [guess, setGuess] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Pool de personajes posibles (mismo filtro que el secreto), para sugerir y
+  // que el impostor seleccione en vez de tipear (evita errores de digitación).
+  const pool = useMemo(() => filterPool(CHARACTERS, room.config), [room.config]);
+  const suggestions = useMemo(() => {
+    const q = norm(guess);
+    if (q.length < 1) return [];
+    return pool
+      .filter((c) => norm(c.name).includes(q) || norm(c.fullName).includes(q))
+      .slice(0, 8);
+  }, [guess, pool]);
 
   if (state === undefined) {
     return (
@@ -35,11 +55,13 @@ export function ImpostorGuess({ room }: { room: RoomView }) {
   const isEjected = state.ejectedClientId === clientId;
   const ejectedPlayer = room.players.find((p) => p.clientId === state.ejectedClientId);
 
-  async function handleSubmit(forceEmpty = false) {
+  async function handleSubmit(value: string) {
     if (busy) return;
     setBusy(true);
     try {
-      await submitGuess({ roundId, clientId, guess: forceEmpty ? '' : guess });
+      await submitGuess({ roundId, clientId, guess: value });
+    } catch (e) {
+      toast.error(friendlyError(e, 'No se pudo enviar la adivinanza.'));
     } finally {
       setBusy(false);
     }
@@ -75,45 +97,68 @@ export function ImpostorGuess({ room }: { room: RoomView }) {
         </Card>
       </Animated.View>
 
-      {/* Ejected impostor sees input */}
+      {/* Ejected impostor sees input + autocompletar */}
       {isEjected && (
         <Animated.View entering={FadeInUp.delay(300).springify()} className="gap-3">
           <Card className="gap-3 border-gold-500/20 bg-gold-500/5">
             <Text variant="label" className="text-gold-500 tracking-widest text-xs">TU ADIVINANZA</Text>
-            <View className="flex-row gap-2">
-              <TextInput
-                value={guess}
-                onChangeText={setGuess}
-                placeholder="Nombre del jugador secreto..."
-                placeholderTextColor="#52525b"
-                maxLength={80}
-                returnKeyType="send"
-                autoFocus
-                onSubmitEditing={() => guess.trim() && handleSubmit(false)}
-                className="flex-1 h-12 rounded-xl border border-gold-500/20 bg-surface-soft px-3 text-white text-base"
-              />
-              <Pressable
-                onPress={() => handleSubmit(false)}
-                disabled={busy || !guess.trim()}
-                className={`h-12 w-12 rounded-xl items-center justify-center
-                  ${guess.trim() ? 'bg-gold-500' : 'bg-surface-soft'}`}
-              >
-                {busy ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text className="text-xl font-display">→</Text>
-                )}
-              </Pressable>
-            </View>
-            <Text variant="label" className="text-zinc-600 text-xs">
-              Vale el nombre o apellido. No es sensible a mayúsculas ni acentos.
-            </Text>
+            <TextInput
+              value={guess}
+              onChangeText={setGuess}
+              placeholder="Escribí para buscar al jugador…"
+              placeholderTextColor="#52525b"
+              maxLength={80}
+              autoFocus
+              autoCorrect={false}
+              className="h-12 rounded-xl border border-gold-500/20 bg-surface-soft px-3 text-white text-base"
+            />
+
+            {/* Sugerencias — tocá para elegir (sin riesgo de typo) */}
+            {suggestions.length > 0 ? (
+              <View className="rounded-xl border border-surface-border overflow-hidden">
+                <ScrollView style={{ maxHeight: 240 }} keyboardShouldPersistTaps="handled">
+                  {suggestions.map((c, i) => (
+                    <Pressable
+                      key={c.id}
+                      onPress={() => handleSubmit(c.name)}
+                      disabled={busy}
+                      className={`flex-row items-center justify-between px-3 py-2.5 active:bg-gold-500/10
+                        ${i > 0 ? 'border-t border-surface-border' : ''}`}
+                    >
+                      <View className="flex-1">
+                        <Text variant="body" className="text-white">{c.name}</Text>
+                        <Text variant="label" className="text-zinc-500 text-xs" numberOfLines={1}>
+                          {c.fullName}{c.club ? ` · ${c.club}` : ''}
+                        </Text>
+                      </View>
+                      <Text className="text-gold-400 text-lg ml-2">→</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : guess.trim().length > 0 ? (
+              <View className="gap-2">
+                <Text variant="muted" className="text-xs text-center">
+                  Ninguno coincide. Podés arriesgar con lo que escribiste:
+                </Text>
+                <Button
+                  title={`Arriesgar “${guess.trim()}”`}
+                  variant="secondary"
+                  loading={busy}
+                  onPress={() => handleSubmit(guess)}
+                />
+              </View>
+            ) : (
+              <Text variant="label" className="text-zinc-600 text-xs">
+                Empezá a escribir y elegí de la lista. No te preocupes por tildes ni mayúsculas.
+              </Text>
+            )}
           </Card>
 
           <Button
             title="Rendirse (no adivino)"
             variant="ghost"
-            onPress={() => handleSubmit(true)}
+            onPress={() => handleSubmit('')}
           />
         </Animated.View>
       )}
@@ -136,7 +181,7 @@ export function ImpostorGuess({ room }: { room: RoomView }) {
           <Button
             title="Forzar resultado (cuenta como error)"
             variant="ghost"
-            onPress={() => handleSubmit(true)}
+            onPress={() => handleSubmit('')}
           />
         </Animated.View>
       )}
