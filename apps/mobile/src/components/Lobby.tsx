@@ -22,6 +22,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, Share, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInLeft } from 'react-native-reanimated';
 import { useSession } from '@/lib/session';
+import { runAction } from '@/lib/useToast';
 import { POSITION_COLORS } from './types';
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -352,7 +353,8 @@ function ConfigTabs({
               </View>
               {commMode === 'audio' && (
                 <Text variant="label" className="text-zinc-600 text-xs">
-                  🚧 La sala de audio está en construcción — por ahora muestra un aviso.
+                  🎙️ Sala de voz por LiveKit. Funciona en web/escritorio (en el celular, abrí
+                  el juego desde el navegador). Requiere configurar el server — ver docs/AUDIO.md.
                 </Text>
               )}
             </View>
@@ -487,7 +489,7 @@ function ConfigTabs({
 // ─── Lobby ────────────────────────────────────────────────────────────────
 
 export function Lobby({ room }: { room: RoomView }) {
-  const { clientId } = useSession();
+  const { clientId, setLeaving } = useSession();
   const isHost = room.hostClientId === clientId;
   const updateConfig = useMutation(api.rooms.updateConfig);
   const startRound = useMutation(api.game.startRound);
@@ -511,7 +513,10 @@ export function Lobby({ room }: { room: RoomView }) {
   async function patch(partial: Partial<GameConfig>) {
     if (!isHost) return;
     setStartError(null);
-    await updateConfig({ roomId: room._id, clientId, config: { ...config, ...partial } });
+    await runAction(
+      () => updateConfig({ roomId: room._id, clientId, config: { ...config, ...partial } }),
+      'No se pudo guardar la configuración.',
+    );
   }
 
   async function invite() {
@@ -568,6 +573,7 @@ export function Lobby({ room }: { room: RoomView }) {
   }
 
   async function handleLeave() {
+    setLeaving(true);
     await leave({ roomId: room._id, clientId });
     router.replace('/');
   }

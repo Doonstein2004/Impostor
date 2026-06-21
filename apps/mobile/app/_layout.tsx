@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Toast } from '@/components/Toast';
 import { convex } from '@/lib/convex';
 import { useSession } from '@/lib/session';
 
@@ -42,6 +43,8 @@ export default function RootLayout() {
                 se duplica el inset del status bar (espacio vacío arriba). */}
             <Stack.Screen name="room/[code]" options={{ headerShown: false }} />
           </Stack>
+          {/* Toast global por encima de todo */}
+          <Toast />
         </ConvexProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

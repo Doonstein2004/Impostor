@@ -13,4 +13,9 @@ Para la "sala de audio" del juego Impostor se evaluaron LiveKit, WebRTC P2P y di
 
 **How to apply:** requiere un servidor LiveKit (self-host con TURN, o LiveKit Cloud free tier) + un endpoint que firme tokens de acceso (se puede hacer con una Convex action). En Expo necesita dev build (no funciona en Expo Go); web funciona directo.
 
-El usuario eligió avanzar **por partes**: primero reacciones persistentes + rediseño de pistas + chat de texto + toggle de config audio/texto; el audio (LiveKit) queda para una fase posterior. Ver [[CLAUDE]].
+**Estado (Fase 3 hecha, web/escritorio):** implementado para web + Tauri con `livekit-client`
+y una Convex action `livekit.token` (firma con `livekit-server-sdk`). Config-driven: el usuario
+eligió "dame ambas guías" (Cloud free tier + self-host Docker) → ver `docs/AUDIO.md`. Faltan 3
+datos para que funcione en runtime: `EXPO_PUBLIC_LIVEKIT_URL` (cliente) + `LIVEKIT_API_KEY`/
+`LIVEKIT_API_SECRET` (env de Convex). **Nativo Android/iOS queda para fase siguiente**
+(`@livekit/react-native-webrtc` + dev build). Ver [[CLAUDE]].

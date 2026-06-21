@@ -240,7 +240,61 @@ pnpm --filter @impostor/mobile run export
 
 ---
 
+## Sala de audio (LiveKit) — Fase 3
+
+- **Decisión**: LiveKit (open source, free/self-host, multiplataforma). Ver [[audio-livekit-decision]].
+- **Implementado web + escritorio (Tauri)**. Nativo (Android/iOS) queda para fase siguiente
+  (requiere `@livekit/react-native-webrtc` + dev build).
+- **Token**: `packages/backend/convex/livekit.ts` → action `token` (Node, `'use node'`) firma
+  con `livekit-server-sdk`. Room LiveKit = `impostor-<codigo>`. **Función nueva → requiere push.**
+- **Cliente**: `AudioRoom.web.tsx` (real, `livekit-client`) + `AudioRoom.tsx` (placeholder
+  nativo). Montado en `room/[code].tsx` cuando `commMode === 'audio'` (si no, `GameChat`).
+- **Config (3 datos)** — ver `docs/AUDIO.md`:
+  - `EXPO_PUBLIC_LIVEKIT_URL` en `apps/mobile/.env` (y Vercel).
+  - `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` como env del deployment Convex
+    (`npx convex env set ...`).
+  - Sin estos datos el modo audio muestra "Audio no configurado" (no rompe nada).
+
 ## Historial de cambios importantes
+
+### 2026-06-20 (tanda 10) — Sistema de toasts (nada queda mudo)
+- **Toast global**: `lib/useToast.ts` (store zustand + `toast.error/info/success` + `runAction`)
+  y `components/Toast.tsx` (banner arriba, auto-dismiss 4s), montado en `_layout`.
+- **`lib/errors.ts`**: `friendlyError()` traduce los errores del backend a español claro
+  (código mal, ya empezó, solo host, votación cerrada, etc.). El home lo reutiliza.
+- **Toda mutación con feedback**: se envolvieron con `runAction`/try-catch+toast:
+  `updateConfig` (Lobby), `skipSpeaker`/`nextClueRound`/`startVoting`/`backToLobby`/
+  `submitClueAndAdvance` (GameRound), `castVote`/`reveal` (Voting), `submitImpostorGuess`
+  (ImpostorGuess), `backToLobby` (Reveal), `messages.send` (Chat).
+- **Eventos avisados**: cambio de host ("Ahora sos el host 👑") y cancelación de ronda
+  ("El host canceló la ronda") detectados en `room/[code].tsx` por transición de
+  `hostClientId`/`status`. Expulsión y errores del home ya estaban (tanda 9).
+
+### 2026-06-20 (tanda 9) — Mensajes/feedback que faltaban
+- **Errores del home inline**: `index.tsx` ya no usa `Alert.alert` (mudo en web). Ahora muestra
+  cards inline: código mal ("no existe…"), partida ya empezada, falta nombre. `friendlyError()`
+  traduce los mensajes del backend.
+- **Aviso de expulsión**: el store de sesión tiene `notice` (flash) y `leaving` (salida
+  voluntaria, transitorios, no persistidos). `room/[code].tsx` detecta si el jugador dejó de
+  figurar en `players` estando presente → si no fue salida voluntaria, setea
+  `notice='Te expulsaron…'` y vuelve al home, que muestra el aviso. Cada botón de salir
+  (Lobby/GameRound/Voting/Reveal) hace `setLeaving(true)` antes de `leave` para no confundir
+  salida con expulsión.
+
+### 2026-06-20 (tanda 8) — Auto-reveal, autocompletar, feed invertido
+- **Auto-reveal al votar todos**: `Voting.tsx` ahora revela automáticamente cuando todos
+  votaron (no hay que esperar a que el host clickee). Sigue habiendo auto-reveal por timer y
+  el botón manual del host como respaldo.
+- **Scrollbar con estilo (web)**: CSS en `global.css` (`::-webkit-scrollbar` + Firefox
+  `scrollbar-width/color`): fina, redondeada, dorada al hover.
+- **Adivinanza del impostor con autocompletar**: `ImpostorGuess.tsx` ya no es input duro;
+  muestra sugerencias del pool (`filterPool(CHARACTERS, room.config)`) filtradas por lo que
+  se escribe; se elige tocando (sin error de tipeo). Si nada coincide, deja "arriesgar" el
+  texto. El backend `submitImpostorGuess` ya normalizaba (no cambió).
+- **Pistas más recientes arriba**: `CluesFeed` invierte el orden (vueltas y pistas desc);
+  el badge "NUEVA" pasó a `i === 0`.
+- **+30 jugadores menos conocidos**: `players.ts` (Pjanić, Hamšík, Cambiasso, Zanetti, Banega,
+  Verratti, Immobile, Vardy, etc.) para que sea más difícil.
 
 ### 2026-06-20 (tanda 7) — Orden de vueltas + desfase de timer
 - **Orden de turnos entre vueltas**: `nextClueRound` re-barajaba el `speakerOrder` en cada

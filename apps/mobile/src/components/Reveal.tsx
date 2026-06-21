@@ -13,6 +13,7 @@ import Animated, {
 import { router } from 'expo-router';
 import { useSession } from '@/lib/session';
 import { useChatInset } from '@/lib/useChatDock';
+import { runAction } from '@/lib/useToast';
 import { POSITION_COLORS } from './types';
 import type { RoomView } from './types';
 
@@ -57,7 +58,7 @@ function RankingRow({ player, rank, prevScore, animated }: {
 }
 
 export function Reveal({ room }: { room: RoomView }) {
-  const { clientId } = useSession();
+  const { clientId, setLeaving } = useSession();
   const isHost = room.hostClientId === clientId;
   const chatInset = useChatInset(24);
   const data = useQuery(
@@ -264,7 +265,7 @@ export function Reveal({ room }: { room: RoomView }) {
           {confirmLeave ? (
             <View className="flex-row justify-center gap-3 items-center">
               <Pressable
-                onPress={async () => { await leave({ roomId: room._id, clientId }); router.replace('/'); }}
+                onPress={async () => { setLeaving(true); await leave({ roomId: room._id, clientId }); router.replace('/'); }}
                 className="px-4 py-2 rounded-lg border border-impostor-500/60 bg-impostor-500/10"
               >
                 <Text className="text-impostor-400 text-sm font-display">Confirmar salida</Text>
@@ -298,14 +299,14 @@ export function Reveal({ room }: { room: RoomView }) {
               <Button
                 title="🔄 Nueva sesión"
                 variant="secondary"
-                onPress={() => backToLobby({ roomId: room._id, clientId, newSession: true })}
+                onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId, newSession: true }), 'No se pudo iniciar una nueva sesión.')}
               />
             )}
           </View>
         ) : isHost ? (
           <Button
             title={`⚽ Jugar partida ${room.roundNumber + 1}${maxRounds > 0 ? ` de ${maxRounds}` : ''}`}
-            onPress={() => backToLobby({ roomId: room._id, clientId })}
+            onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId }), 'No se pudo volver al lobby.')}
           />
         ) : (
           <Card className="items-center">
