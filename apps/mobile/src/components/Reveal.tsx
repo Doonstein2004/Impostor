@@ -1,7 +1,7 @@
 import { api } from '@impostor/backend/api';
 import { Button, Card, Screen, Text } from '@impostor/ui';
 import { useMutation, useQuery } from 'convex/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import Animated, {
   BounceInDown,
@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import { useSession } from '@/lib/session';
 import { useChatInset } from '@/lib/useChatDock';
 import { runAction } from '@/lib/useToast';
+import { useSounds } from '@/lib/useSounds';
 import { POSITION_COLORS } from './types';
 import type { RoomView } from './types';
 
@@ -66,8 +67,21 @@ export function Reveal({ room }: { room: RoomView }) {
     room.currentRoundId ? { roundId: room.currentRoundId } : 'skip',
   );
   const backToLobby = useMutation(api.game.backToLobby);
+  const quickRematch = useMutation(api.game.quickRematch);
   const leave = useMutation(api.rooms.leave);
+  const { play } = useSounds();
   const [confirmLeave, setConfirmLeave] = useState(false);
+
+  // Sonido de resultado al cargar (una sola vez)
+  const soundPlayed = useState(false);
+  useEffect(() => {
+    if (!data || soundPlayed[0]) return;
+    soundPlayed[1](true);
+    setTimeout(() => {
+      if (data.innocentsWin) play('innocentsWin');
+      else play('impostorWins');
+    }, 400);
+  }, [data]);
 
   if (data === undefined) {
     return (
@@ -304,10 +318,17 @@ export function Reveal({ room }: { room: RoomView }) {
             )}
           </View>
         ) : isHost ? (
-          <Button
-            title={`⚽ Jugar partida ${room.roundNumber + 1}${maxRounds > 0 ? ` de ${maxRounds}` : ''}`}
-            onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId }), 'No se pudo volver al lobby.')}
-          />
+          <View className="gap-2">
+            <Button
+              title="⚡ Revancha inmediata"
+              onPress={() => runAction(() => quickRematch({ roomId: room._id, clientId }), 'No se pudo iniciar la revancha.')}
+            />
+            <Button
+              title={`⚙️ Volver al lobby`}
+              variant="secondary"
+              onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId }), 'No se pudo volver al lobby.')}
+            />
+          </View>
         ) : (
           <Card className="items-center">
             <Text variant="muted" className="text-center">El host decidirá si juegan otra ronda.</Text>

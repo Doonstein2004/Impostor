@@ -42,6 +42,7 @@ export default function RootLayout() {
             {/* Sin header nativo: cada fase tiene su propia barra/salir y así no
                 se duplica el inset del status bar (espacio vacío arriba). */}
             <Stack.Screen name="room/[code]" options={{ headerShown: false }} />
+            <Stack.Screen name="stats" options={{ title: 'Mis estadísticas', headerBackTitle: 'Volver' }} />
           </Stack>
           {/* Toast global por encima de todo */}
           <Toast />

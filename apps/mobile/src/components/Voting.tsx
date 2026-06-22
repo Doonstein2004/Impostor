@@ -9,6 +9,7 @@ import { useSession } from '@/lib/session';
 import { useCountdown } from '@/lib/useCountdown';
 import { useChatInset } from '@/lib/useChatDock';
 import { runAction } from '@/lib/useToast';
+import { useSounds } from '@/lib/useSounds';
 import type { RoomView } from './types';
 
 export function Voting({ room }: { room: RoomView }) {
@@ -20,6 +21,7 @@ export function Voting({ room }: { room: RoomView }) {
   const castVote = useMutation(api.votes.cast);
   const reveal = useMutation(api.game.reveal);
   const leave = useMutation(api.rooms.leave);
+  const { play } = useSounds();
   const [confirmLeave, setConfirmLeave] = useState(false);
   const voteState = useQuery(api.votes.state, roundId ? { roundId } : 'skip');
   const round = useQuery(api.game.getRound, roundId ? { roundId } : 'skip');
@@ -120,13 +122,13 @@ export function Voting({ room }: { room: RoomView }) {
             <Animated.View key={p.clientId} entering={FadeInRight.delay(i * 80).duration(300).springify()}>
               <Pressable
                 disabled={isMe || !roundId}
-                onPress={() =>
-                  roundId &&
-                  runAction(
+                onPress={() => {
+                  play('vote');
+                  roundId && runAction(
                     () => castVote({ roundId, voterClientId: clientId, targetClientId: p.clientId }),
                     'No se pudo registrar tu voto.',
-                  )
-                }
+                  );
+                }}
               >
                 <Card
                   className={`flex-row items-center justify-between

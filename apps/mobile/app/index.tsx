@@ -12,11 +12,13 @@ export default function Home() {
   const { clientId, name, setName, currentRoomCode, setCurrentRoomCode, notice, setNotice } = useSession();
   const createRoom = useMutation(api.rooms.create);
   const joinRoom = useMutation(api.rooms.join);
+  const joinAsSpectator = useMutation(api.rooms.joinAsSpectator);
 
   const { code: codeParam } = useLocalSearchParams<{ code?: string }>();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [spectatorCode, setSpectatorCode] = useState<string | null>(null);
 
   // Si llegan por enlace de invitación (?code=XXXX), precargamos el código.
   useEffect(() => {
@@ -44,6 +46,7 @@ export default function Home() {
   async function handleJoin() {
     setError(null);
     setNotice(null);
+    setSpectatorCode(null);
     if (needName) { setError('Ingresá tu nombre (mínimo 2 letras) para jugar.'); return; }
     if (code.trim().length < 4) { setError('El código tiene que tener al menos 4 caracteres. Revisalo.'); return; }
     setBusy(true);
@@ -51,9 +54,30 @@ export default function Home() {
       const res = await joinRoom({ code: code.trim().toUpperCase(), clientId, name: name.trim() });
       router.push(`/room/${res.code}`);
     } catch (e) {
-      setError(friendlyError(e, 'No se pudo unir a la sala. Probá de nuevo.'));
+      const msg = String(e);
+      if (msg.includes('partida ya empezó')) {
+        // Ofrecer modo espectador en lugar del error
+        setSpectatorCode(code.trim().toUpperCase());
+      } else {
+        setError(friendlyError(e, 'No se pudo unir a la sala. Probá de nuevo.'));
+      }
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleSpectate() {
+    if (!spectatorCode) return;
+    if (needName) { setError('Ingresá tu nombre para ver la partida.'); return; }
+    setBusy(true);
+    try {
+      const res = await joinAsSpectator({ code: spectatorCode, clientId, name: name.trim() });
+      router.push(`/room/${res.code}`);
+    } catch (e) {
+      setError(friendlyError(e, 'No se pudo entrar como espectador.'));
+    } finally {
+      setBusy(false);
+      setSpectatorCode(null);
     }
   }
 
@@ -77,6 +101,29 @@ export default function Home() {
             <Text className="text-yellow-400 text-xl">×</Text>
           </Pressable>
         </View>
+      )}
+
+      {/* Oferta de espectador cuando la partida ya empezó */}
+      {spectatorCode && (
+        <Card className="mt-4 mb-2 gap-3 border-zinc-600/40 bg-zinc-600/5">
+          <View className="flex-row items-center gap-2">
+            <Text className="text-2xl">👀</Text>
+            <View className="flex-1">
+              <Text variant="label" className="text-zinc-400 text-xs">PARTIDA EN CURSO · {spectatorCode}</Text>
+              <Text variant="body">¿Querés ver como espectador?</Text>
+            </View>
+          </View>
+          <Text variant="muted" className="text-sm">Podés ver las pistas y el chat, pero no participar en la ronda actual.</Text>
+          <View className="flex-row gap-2">
+            <Button title="Ver como espectador" onPress={handleSpectate} loading={busy} className="flex-1" />
+            <Pressable
+              onPress={() => setSpectatorCode(null)}
+              className="px-4 py-3 rounded-xl border border-surface-border items-center justify-center"
+            >
+              <Text className="text-zinc-500 text-sm">×</Text>
+            </Pressable>
+          </View>
+        </Card>
       )}
 
       {/* Tarjeta de invitación si llegaron por enlace */}
@@ -164,6 +211,14 @@ export default function Home() {
         />
         <Button title="Unirme" variant="secondary" onPress={handleJoin} loading={busy} className="mt-2" />
       </Card>
+
+      <Pressable
+        onPress={() => router.push('/stats')}
+        className="mt-6 mb-4 items-center flex-row justify-center gap-2 py-3"
+      >
+        <Text className="text-lg">📊</Text>
+        <Text variant="muted" className="text-sm">Ver mis estadísticas</Text>
+      </Pressable>
     </Screen>
   );
 }

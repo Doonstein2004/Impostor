@@ -14,6 +14,7 @@ export interface RoomView {
     clientId: string;
     name: string;
     isHost: boolean;
+    isSpectator: boolean;
     connected: boolean;
     lastActiveAt?: number;
     score: number;

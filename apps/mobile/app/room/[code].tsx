@@ -10,6 +10,8 @@ import { GameRound } from '@/components/GameRound';
 import { ImpostorGuess } from '@/components/ImpostorGuess';
 import { Lobby } from '@/components/Lobby';
 import { Reveal } from '@/components/Reveal';
+import { SpectatorView } from '@/components/SpectatorView';
+import { TutorialModal } from '@/components/TutorialModal';
 import { Voting } from '@/components/Voting';
 import { useSession } from '@/lib/session';
 import { usePresence } from '@/lib/usePresence';
@@ -88,8 +90,21 @@ export default function RoomScreen() {
     );
   }
 
+  const isSpectator = room.players.find((p) => p.clientId === clientId)?.isSpectator ?? false;
+
+  if (isSpectator) {
+    return (
+      <>
+        <TutorialModal />
+        <SpectatorView room={room} />
+        <GameChat room={room} />
+      </>
+    );
+  }
+
   return (
     <>
+      <TutorialModal />
       {room.status === 'lobby' && <Lobby room={room} />}
       {room.status === 'playing' && <GameRound room={room} />}
       {room.status === 'voting' && <Voting room={room} />}

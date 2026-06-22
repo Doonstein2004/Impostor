@@ -62,6 +62,7 @@ export default defineSchema({
     clientId: v.string(),
     name: v.string(),
     isHost: v.boolean(),
+    isSpectator: v.optional(v.boolean()),
     connected: v.boolean(),
     lastActiveAt: v.optional(v.number()),
     score: v.number(),
@@ -141,4 +142,19 @@ export default defineSchema({
     text: v.string(),
     createdAt: v.number(),
   }).index('by_room', ['roomId']),
+
+  /** Estadísticas acumuladas por jugador (clientId persistente en el dispositivo). */
+  stats: defineTable({
+    clientId: v.string(),
+    name: v.string(),
+    gamesPlayed: v.number(),
+    timesImpostor: v.number(),
+    timesInnocent: v.number(),
+    impostorWins: v.number(),
+    innocentWins: v.number(),
+    timesDetected: v.number(),
+    timesGuessedSecret: v.number(),
+    totalScore: v.number(),
+    updatedAt: v.number(),
+  }).index('by_client', ['clientId']),
 });

@@ -30,6 +30,7 @@ import { useSession } from '@/lib/session';
 import { useCountdown } from '@/lib/useCountdown';
 import { useChatInset } from '@/lib/useChatDock';
 import { runAction, toast } from '@/lib/useToast';
+import { useSounds } from '@/lib/useSounds';
 import { friendlyError } from '@/lib/errors';
 import { CLUE_EMOJIS, POSITION_COLORS } from './types';
 import type { RoomView } from './types';
@@ -588,6 +589,7 @@ export function GameRound({ room }: { room: RoomView }) {
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId!;
   const chatInset = useChatInset(24);
+  const { play } = useSounds();
 
   const card = useQuery(api.game.getMyCard, { roundId, clientId });
   const round = useQuery(api.game.getRound, { roundId });
@@ -628,6 +630,26 @@ export function GameRound({ room }: { room: RoomView }) {
     turnStartedAt,
     !allSpoke && !!currentSpeakerId && turnSeconds > 0,
   );
+
+  // Sonido al empezar el turno propio
+  const prevSpeakerId = useRef<string | null>(null);
+  useEffect(() => {
+    if (isMyTurn && currentSpeakerId !== prevSpeakerId.current) {
+      play('myTurn');
+    }
+    prevSpeakerId.current = currentSpeakerId;
+  }, [currentSpeakerId, isMyTurn]);
+
+  // Tick del timer (últimos 10s = urgente, resto = normal)
+  const prevTimeLeft = useRef(timeLeft);
+  useEffect(() => {
+    if (turnSeconds <= 0 || !isMyTurn) return;
+    if (timeLeft > 0 && timeLeft < prevTimeLeft.current) {
+      if (timeLeft <= 5) play('tickUrgent');
+      else if (timeLeft <= 10) play('tick');
+    }
+    prevTimeLeft.current = timeLeft;
+  }, [timeLeft, isMyTurn, turnSeconds]);
 
   const hasAutoSkipped = useRef(false);
   useEffect(() => {

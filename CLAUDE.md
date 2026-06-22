@@ -257,6 +257,42 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-06-22 (tanda 11) — Rematch, auto-kick, sonidos, tutorial, estadísticas, espectador
+
+- **Revancha inmediata (`quickRematch`)**: nueva mutation en `game.ts` que salta el lobby y
+  arranca la siguiente ronda directamente. `Reveal.tsx` muestra botón "⚡ Revancha inmediata"
+  (host) además del botón "⚙️ Volver al lobby".
+
+- **Auto-kick por inactividad**: cuando un jugador se desconecta durante una partida activa,
+  `updatePresence` programa `ctx.scheduler.runAfter(3min, internal.rooms.autoKickCheck)`.
+  La internal mutation `autoKickCheck` verifica si el jugador sigue desconectado (y no reconectó
+  después de la desconexión que disparó el check) y lo expulsa. Transfiere el host si era host.
+  **IMPORTANTE**: requiere push a Convex (usa `internalMutation` y `ctx.scheduler`).
+
+- **Sonidos (Web Audio API)**: `lib/useSounds.ts` genera tonos proceduralmente con `AudioContext`
+  (sin dependencias, degrada en native). Eventos: `myTurn` (al empezar tu turno), `tick`/`tickUrgent`
+  (countdown últimos 10/5s), `vote` (al votar), `innocentsWin`/`impostorWins` (al revelar).
+
+- **Tutorial interactivo**: `components/TutorialModal.tsx` — modal con 5 slides explicando las
+  reglas. `TutorialModal` se muestra automáticamente la primera vez que se entra a una sala
+  (flag `tutorialSeen` en session store, persistido). `TutorialButton` ("? Cómo jugar") en el
+  Lobby para relanzarlo manualmente.
+
+- **Estadísticas por jugador**: nueva tabla `stats` en schema (index `by_client`).
+  `stats.ts` — mutation `recordGame` (upsert por `clientId`) + query `get`.
+  Se registra al final de cada partida, inline en `reveal` y `submitImpostorGuess` vía
+  helper `upsertStats(ctx, ...)` (no puede llamarse desde mutation otra mutation, se hace con `ctx.db` directo).
+  Pantalla `/stats` con win rate, partidas como impostor/inocente, veces detectado, etc.
+  Botón "📊 Ver mis estadísticas" en el home.
+  **IMPORTANTE**: schema nuevo → requiere push a Convex.
+
+- **Modo espectador**: campo `isSpectator: v.optional(v.boolean())` en tabla `players`.
+  Mutation `joinAsSpectator` permite entrar a cualquier sala sin importar el estado.
+  En el home, si `join` falla con "partida ya empezó" se ofrece card de espectador.
+  `SpectatorView.tsx` — vista solo lectura con turno actual, feed de pistas, lista de jugadores.
+  El espectador ve el chat pero no puede dar pistas ni votar.
+  **IMPORTANTE**: schema nuevo → requiere push a Convex.
+
 ### 2026-06-20 (tanda 10) — Sistema de toasts (nada queda mudo)
 - **Toast global**: `lib/useToast.ts` (store zustand + `toast.error/info/success` + `runAction`)
   y `components/Toast.tsx` (banner arriba, auto-dismiss 4s), montado en `_layout`.

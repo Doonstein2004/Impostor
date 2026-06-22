@@ -12,6 +12,7 @@ interface SessionState {
   name: string;
   hydrated: boolean;
   currentRoomCode: string | null;
+  tutorialSeen: boolean;
   /** Mensaje "flash" para mostrar al volver al home (ej. "Te expulsaron"). Transitorio. */
   notice: string | null;
   /** true mientras el jugador sale por su cuenta (para no confundir con expulsión). Transitorio. */
@@ -19,6 +20,7 @@ interface SessionState {
   setName: (name: string) => void;
   setHydrated: () => void;
   setCurrentRoomCode: (code: string | null) => void;
+  setTutorialSeen: () => void;
   setNotice: (notice: string | null) => void;
   setLeaving: (leaving: boolean) => void;
 }
@@ -30,18 +32,20 @@ export const useSession = create<SessionState>()(
       name: '',
       hydrated: false,
       currentRoomCode: null,
+      tutorialSeen: false,
       notice: null,
       leaving: false,
       setName: (name) => set({ name }),
       setHydrated: () => set({ hydrated: true }),
       setCurrentRoomCode: (code) => set({ currentRoomCode: code }),
+      setTutorialSeen: () => set({ tutorialSeen: true }),
       setNotice: (notice) => set({ notice }),
       setLeaving: (leaving) => set({ leaving }),
     }),
     {
       name: 'impostor-session',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({ clientId: s.clientId, name: s.name, currentRoomCode: s.currentRoomCode }),
+      partialize: (s) => ({ clientId: s.clientId, name: s.name, currentRoomCode: s.currentRoomCode, tutorialSeen: s.tutorialSeen }),
       onRehydrateStorage: () => (state) => state?.setHydrated(),
     },
   ),

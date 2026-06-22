@@ -1,7 +1,10 @@
 import { DEFAULT_CONFIG, generateRoomCode } from '@impostor/core';
 import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
+import { internalMutation, mutation, query } from './_generated/server';
+import { internal } from './_generated/api';
 import { gameConfigValidator } from './schema';
+
+const INACTIVE_KICK_MS = 3 * 60 * 1000; // 3 minutos
 
 /** Crea una sala nueva y agrega al host como primer jugador. */
 export const create = mutation({
@@ -74,6 +77,40 @@ export const join = mutation({
   },
 });
 
+/** Une a alguien como espectador. Funciona en cualquier estado de la sala. */
+export const joinAsSpectator = mutation({
+  args: { code: v.string(), clientId: v.string(), name: v.string() },
+  handler: async (ctx, { code, clientId, name }) => {
+    const room = await ctx.db
+      .query('rooms')
+      .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
+      .first();
+    if (!room) throw new Error('Sala no encontrada');
+
+    const existing = await ctx.db
+      .query('players')
+      .withIndex('by_room_client', (q) => q.eq('roomId', room._id).eq('clientId', clientId))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { connected: true, name });
+      return { roomId: room._id, code: room.code, isSpectator: existing.isSpectator ?? false };
+    }
+
+    await ctx.db.insert('players', {
+      roomId: room._id,
+      clientId,
+      name,
+      isHost: false,
+      isSpectator: true,
+      connected: true,
+      score: 0,
+      joinedAt: Date.now(),
+    });
+    return { roomId: room._id, code: room.code, isSpectator: true };
+  },
+});
+
 /** El jugador abandona la sala. Si era el host, transfiere el host al siguiente. */
 export const leave = mutation({
   args: { roomId: v.id('rooms'), clientId: v.string() },
@@ -133,6 +170,18 @@ export const updatePresence = mutation({
       .first();
     if (!player) return;
     await ctx.db.patch(player._id, { connected, lastActiveAt: Date.now() });
+
+    // Si se desconecta durante una partida activa, programar verificación de auto-kick
+    if (!connected) {
+      const room = await ctx.db.get(roomId);
+      if (room && room.status !== 'lobby' && room.status !== 'finished') {
+        await ctx.scheduler.runAfter(INACTIVE_KICK_MS, internal.rooms.autoKickCheck, {
+          roomId,
+          clientId,
+          disconnectedAt: Date.now(),
+        });
+      }
+    }
   },
 });
 
@@ -178,10 +227,57 @@ export const get = query({
           clientId: p.clientId,
           name: p.name,
           isHost: p.isHost,
+          isSpectator: p.isSpectator ?? false,
           connected: p.connected,
           lastActiveAt: p.lastActiveAt,
           score: p.score,
         })),
     };
+  },
+});
+
+/**
+ * Verificación programada: si el jugador sigue desconectado INACTIVE_KICK_MS
+ * después de perder la conexión durante una partida activa, se lo expulsa.
+ * No actúa si ya reconectó, si la sala volvió al lobby, o si ya no existe.
+ */
+export const autoKickCheck = internalMutation({
+  args: {
+    roomId: v.id('rooms'),
+    clientId: v.string(),
+    disconnectedAt: v.number(),
+  },
+  handler: async (ctx, { roomId, clientId, disconnectedAt }) => {
+    const room = await ctx.db.get(roomId);
+    if (!room) return;
+    if (room.status === 'lobby' || room.status === 'finished') return;
+
+    const player = await ctx.db
+      .query('players')
+      .withIndex('by_room_client', (q) => q.eq('roomId', roomId).eq('clientId', clientId))
+      .first();
+    if (!player) return;
+
+    // Si el jugador ya reconectó después de la desconexión que disparó este check, no hacer nada
+    if (player.connected) return;
+    if ((player.lastActiveAt ?? 0) > disconnectedAt) return;
+
+    // Expulsar al jugador inactivo
+    await ctx.db.delete(player._id);
+
+    // Si era el host, transferir
+    if (room.hostClientId === clientId) {
+      const remaining = await ctx.db
+        .query('players')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .collect();
+      if (remaining.length === 0) {
+        await ctx.db.delete(roomId);
+        return;
+      }
+      const next = remaining.sort((a, b) => a.joinedAt - b.joinedAt)[0]!;
+      await ctx.db.patch(roomId, { hostClientId: next.clientId });
+      await ctx.db.patch(next._id, { isHost: true });
+    }
   },
 });

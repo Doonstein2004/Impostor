@@ -23,6 +23,7 @@ import { Alert, Platform, Pressable, Share, TextInput, View } from 'react-native
 import Animated, { FadeIn, FadeInDown, FadeInLeft } from 'react-native-reanimated';
 import { useSession } from '@/lib/session';
 import { runAction } from '@/lib/useToast';
+import { TutorialButton } from './TutorialModal';
 import { POSITION_COLORS } from './types';
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -584,6 +585,9 @@ export function Lobby({ room }: { room: RoomView }) {
       <Animated.View entering={FadeInDown.duration(400)} className="items-center py-4 gap-1">
         <Text className="text-5xl mb-1">⚽</Text>
         <Text variant="display" className="text-center text-2xl">IMPOSTOR FÚTBOL</Text>
+        <View className="mt-1">
+          <TutorialButton />
+        </View>
         {room.roundNumber > 0 && (
           <View className="px-3 py-0.5 rounded-full border border-gold-500/40 bg-gold-500/10 mt-1">
             <Text variant="label" className="text-gold-400 tracking-widest text-xs">

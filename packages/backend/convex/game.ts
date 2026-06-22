@@ -2,6 +2,75 @@ import { filterPool, setupRound, tallyVotes, type GameConfig } from '@impostor/c
 import { CHARACTERS } from '@impostor/data';
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+async function upsertStats(
+  ctx: any,
+  clientId: string,
+  name: string,
+  wasImpostor: boolean,
+  won: boolean,
+  wasDetected: boolean,
+  guessedSecret: boolean,
+  scoreGained: number,
+) {
+  const existing = await ctx.db
+    .query('stats')
+    .withIndex('by_client', (q: any) => q.eq('clientId', clientId))
+    .first();
+
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      name,
+      gamesPlayed: existing.gamesPlayed + 1,
+      timesImpostor: existing.timesImpostor + (wasImpostor ? 1 : 0),
+      timesInnocent: existing.timesInnocent + (wasImpostor ? 0 : 1),
+      impostorWins: existing.impostorWins + (wasImpostor && won ? 1 : 0),
+      innocentWins: existing.innocentWins + (!wasImpostor && won ? 1 : 0),
+      timesDetected: existing.timesDetected + (wasDetected ? 1 : 0),
+      timesGuessedSecret: existing.timesGuessedSecret + (guessedSecret ? 1 : 0),
+      totalScore: existing.totalScore + scoreGained,
+      updatedAt: Date.now(),
+    });
+  } else {
+    await ctx.db.insert('stats', {
+      clientId,
+      name,
+      gamesPlayed: 1,
+      timesImpostor: wasImpostor ? 1 : 0,
+      timesInnocent: wasImpostor ? 0 : 1,
+      impostorWins: wasImpostor && won ? 1 : 0,
+      innocentWins: !wasImpostor && won ? 1 : 0,
+      timesDetected: wasDetected ? 1 : 0,
+      timesGuessedSecret: guessedSecret ? 1 : 0,
+      totalScore: scoreGained,
+      updatedAt: Date.now(),
+    });
+  }
+}
+
+async function recordStatsForRound(
+  ctx: any,
+  roomId: string,
+  impostorIds: Set<string>,
+  innocentsWin: boolean,
+  impostorWonGuess: boolean,
+  ejectedClientId: string | null | undefined,
+) {
+  const players = await ctx.db
+    .query('players')
+    .withIndex('by_room', (q: any) => q.eq('roomId', roomId))
+    .collect();
+
+  for (const p of players) {
+    const wasImpostor = impostorIds.has(p.clientId);
+    const won = wasImpostor ? !innocentsWin || impostorWonGuess : innocentsWin;
+    await upsertStats(
+      ctx, p.clientId, p.name, wasImpostor, won,
+      wasImpostor && ejectedClientId === p.clientId,
+      wasImpostor && impostorWonGuess,
+      p.score,
+    );
+  }
+}
 
 const charById = new Map(CHARACTERS.map((c) => [c.id, c]));
 
@@ -291,6 +360,8 @@ export const reveal = mutation({
         innocentsWin: false,
       });
       await ctx.db.patch(roomId, { status: 'reveal' });
+      // Registrar stats: impostores ganan, inocentes pierden
+      await recordStatsForRound(ctx, roomId, impostors, false, false, ejected);
     }
   },
 });
@@ -337,6 +408,75 @@ export const submitImpostorGuess = mutation({
       impostorWonGuess,
     });
     await ctx.db.patch(round.roomId, { status: 'reveal' });
+    // Registrar stats de todos los jugadores
+    await recordStatsForRound(
+      ctx, round.roomId, impostors, !impostorWonGuess, impostorWonGuess, round.ejectedClientId,
+    );
+  },
+});
+
+/** Revancha inmediata: vuelve al lobby y arranca la siguiente ronda sin parar. */
+export const quickRematch = mutation({
+  args: { roomId: v.id('rooms'), clientId: v.string() },
+  handler: async (ctx, { roomId, clientId }) => {
+    const room = await ctx.db.get(roomId);
+    if (!room) throw new Error('Sala no encontrada');
+    if (room.hostClientId !== clientId) throw new Error('Sólo el host puede iniciar la revancha');
+    if (room.status !== 'reveal') throw new Error('Solo se puede revanchar desde el reveal');
+
+    const players = await ctx.db
+      .query('players')
+      .withIndex('by_room', (q) => q.eq('roomId', roomId))
+      .collect();
+    if (players.length < 3) throw new Error('Se necesitan al menos 3 jugadores');
+
+    const config = room.config as GameConfig;
+    const basePool = filterPool(CHARACTERS, config);
+    if (basePool.length === 0) throw new Error('No hay personajes para esta configuración');
+
+    const usedIds = new Set(room.usedCharacterIds ?? []);
+    const freshPool = basePool.filter((c) => !usedIds.has(c.id));
+    const pool = freshPool.length > 0 ? freshPool : basePool;
+    const shouldResetUsed = freshPool.length === 0;
+
+    const { secret, assignments } = setupRound({
+      playerIds: players.map((p) => p.clientId),
+      pool,
+      config,
+    });
+
+    const speakerOrder = shuffleArr(players.map((p) => p.clientId));
+
+    const roundId = await ctx.db.insert('rounds', {
+      roomId,
+      secretCharacterId: secret.id,
+      impostorClientIds: assignments.filter((a) => a.isImpostor).map((a) => a.playerId),
+      status: 'playing',
+      currentTurn: 1,
+      speakerOrder,
+      currentSpeakerIndex: 0,
+      turnStartedAt: Date.now(),
+      startedAt: Date.now(),
+    });
+
+    for (const a of assignments) {
+      await ctx.db.insert('assignments', {
+        roundId,
+        clientId: a.playerId,
+        isImpostor: a.isImpostor,
+        shownCharacterId: a.shownCharacter?.id ?? null,
+        hint: a.hint,
+      });
+    }
+
+    const prevUsed = shouldResetUsed ? [] : (room.usedCharacterIds ?? []);
+    await ctx.db.patch(roomId, {
+      status: 'playing',
+      currentRoundId: roundId,
+      roundNumber: (room.roundNumber ?? 0) + 1,
+      usedCharacterIds: [...prevUsed, secret.id],
+    });
+    return { roundId };
   },
 });
 
