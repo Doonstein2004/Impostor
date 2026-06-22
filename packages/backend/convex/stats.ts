@@ -49,6 +49,36 @@ export const recordGame = mutation({
   },
 });
 
+/**
+ * Ranking global: top jugadores por partidas ganadas (desempate por win rate
+ * y luego puntaje total). Sólo incluye jugadores con al menos 1 partida.
+ */
+export const top = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    const all = await ctx.db.query('stats').collect();
+    const rows = all
+      .filter((s) => s.gamesPlayed > 0)
+      .map((s) => {
+        const wins = s.impostorWins + s.innocentWins;
+        return {
+          clientId: s.clientId,
+          name: s.name,
+          gamesPlayed: s.gamesPlayed,
+          wins,
+          totalScore: s.totalScore,
+          winRate: Math.round((wins / s.gamesPlayed) * 100),
+        };
+      })
+      .sort((a, b) =>
+        b.wins - a.wins ||
+        b.winRate - a.winRate ||
+        b.totalScore - a.totalScore,
+      );
+    return rows.slice(0, limit ?? 50);
+  },
+});
+
 /** Stats de un jugador. */
 export const get = query({
   args: { clientId: v.string() },

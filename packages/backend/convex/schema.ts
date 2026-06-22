@@ -63,6 +63,8 @@ export default defineSchema({
     name: v.string(),
     isHost: v.boolean(),
     isSpectator: v.optional(v.boolean()),
+    /** Clave del color de avatar elegido por el jugador (ver lib/avatars). */
+    color: v.optional(v.string()),
     connected: v.boolean(),
     lastActiveAt: v.optional(v.number()),
     score: v.number(),

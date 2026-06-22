@@ -1,5 +1,4 @@
 import { api } from '@impostor/backend/api';
-import { CHARACTER_COUNT } from '@impostor/data';
 import { Button, Card, Screen, Text } from '@impostor/ui';
 import { useMutation } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -7,9 +6,11 @@ import { useEffect, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { useSession } from '@/lib/session';
 import { friendlyError } from '@/lib/errors';
+import { ColorPicker } from '@/components/ColorPicker';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 export default function Home() {
-  const { clientId, name, setName, currentRoomCode, setCurrentRoomCode, notice, setNotice } = useSession();
+  const { clientId, name, setName, avatarColor, setAvatarColor, currentRoomCode, setCurrentRoomCode, notice, setNotice } = useSession();
   const createRoom = useMutation(api.rooms.create);
   const joinRoom = useMutation(api.rooms.join);
   const joinAsSpectator = useMutation(api.rooms.joinAsSpectator);
@@ -34,7 +35,7 @@ export default function Home() {
     if (needName) { setError('Ingresá tu nombre (mínimo 2 letras) para jugar.'); return; }
     setBusy(true);
     try {
-      const res = await createRoom({ clientId, name: name.trim() });
+      const res = await createRoom({ clientId, name: name.trim(), color: avatarColor });
       router.push(`/room/${res.code}`);
     } catch (e) {
       setError(friendlyError(e, 'No se pudo crear la sala. Probá de nuevo.'));
@@ -51,7 +52,7 @@ export default function Home() {
     if (code.trim().length < 4) { setError('El código tiene que tener al menos 4 caracteres. Revisalo.'); return; }
     setBusy(true);
     try {
-      const res = await joinRoom({ code: code.trim().toUpperCase(), clientId, name: name.trim() });
+      const res = await joinRoom({ code: code.trim().toUpperCase(), clientId, name: name.trim(), color: avatarColor });
       router.push(`/room/${res.code}`);
     } catch (e) {
       const msg = String(e);
@@ -71,7 +72,7 @@ export default function Home() {
     if (needName) { setError('Ingresá tu nombre para ver la partida.'); return; }
     setBusy(true);
     try {
-      const res = await joinAsSpectator({ code: spectatorCode, clientId, name: name.trim() });
+      const res = await joinAsSpectator({ code: spectatorCode, clientId, name: name.trim(), color: avatarColor });
       router.push(`/room/${res.code}`);
     } catch (e) {
       setError(friendlyError(e, 'No se pudo entrar como espectador.'));
@@ -175,20 +176,24 @@ export default function Home() {
         <Text variant="label" className="text-pitch-400">⚽ El juego del</Text>
         <Text variant="display" className="text-center text-4xl">IMPOSTOR{'\n'}FÚTBOL</Text>
         <Text variant="muted" className="mt-2 text-center">
-          {CHARACTER_COUNT} jugadores y DTs · descubrí quién no sabe de quién hablan
+          Descubrí quién no sabe de quién hablan
         </Text>
       </View>
 
       <Card className="gap-3">
         <Text variant="label">Tu nombre</Text>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="Ej. Dani"
-          placeholderTextColor="#52525b"
-          maxLength={16}
-          className="h-12 rounded-2xl border border-surface-border bg-surface-soft px-4 text-white"
-        />
+        <View className="flex-row items-center gap-3">
+          <PlayerAvatar name={name || '?'} color={avatarColor} seed={clientId} size={48} />
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Ej. Dani"
+            placeholderTextColor="#52525b"
+            maxLength={16}
+            className="flex-1 h-12 rounded-2xl border border-surface-border bg-surface-soft px-4 text-white"
+          />
+        </View>
+        <ColorPicker value={avatarColor} onChange={setAvatarColor} />
         <Button title="Crear sala" onPress={handleCreate} loading={busy} className="mt-2" />
       </Card>
 
@@ -212,13 +217,22 @@ export default function Home() {
         <Button title="Unirme" variant="secondary" onPress={handleJoin} loading={busy} className="mt-2" />
       </Card>
 
-      <Pressable
-        onPress={() => router.push('/stats')}
-        className="mt-6 mb-4 items-center flex-row justify-center gap-2 py-3"
-      >
-        <Text className="text-lg">📊</Text>
-        <Text variant="muted" className="text-sm">Ver mis estadísticas</Text>
-      </Pressable>
+      <View className="mt-6 mb-4 flex-row justify-center gap-6">
+        <Pressable
+          onPress={() => router.push('/stats')}
+          className="items-center flex-row justify-center gap-2 py-3"
+        >
+          <Text className="text-lg">📊</Text>
+          <Text variant="muted" className="text-sm">Mis estadísticas</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push('/leaderboard' as never)}
+          className="items-center flex-row justify-center gap-2 py-3"
+        >
+          <Text className="text-lg">🏆</Text>
+          <Text variant="muted" className="text-sm">Ranking</Text>
+        </Pressable>
+      </View>
     </Screen>
   );
 }

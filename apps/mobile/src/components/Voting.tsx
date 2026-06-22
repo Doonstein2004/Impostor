@@ -10,6 +10,7 @@ import { useCountdown } from '@/lib/useCountdown';
 import { useChatInset } from '@/lib/useChatDock';
 import { runAction } from '@/lib/useToast';
 import { useSounds } from '@/lib/useSounds';
+import { PlayerAvatar } from './PlayerAvatar';
 import type { RoomView } from './types';
 
 export function Voting({ room }: { room: RoomView }) {
@@ -137,14 +138,7 @@ export function Voting({ room }: { room: RoomView }) {
                   `}
                 >
                   <View className="flex-row items-center gap-3">
-                    {/* Avatar inicial */}
-                    <View className={`h-9 w-9 rounded-full items-center justify-center
-                      ${iVotedFor ? 'bg-impostor-500' : 'bg-surface-soft border border-surface-border'}`}
-                    >
-                      <Text variant="body" className="text-base font-display">
-                        {p.name.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
+                    <PlayerAvatar name={p.name} color={p.color} seed={p.clientId} size={36} selected={iVotedFor} />
                     <View>
                       <Text variant="body">{p.name}{isMe ? ' (vos)' : ''}</Text>
                       {p.isHost && <Text variant="label" className="text-pitch-400 text-xs">HOST</Text>}

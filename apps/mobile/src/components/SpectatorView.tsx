@@ -3,6 +3,7 @@ import { Card, Screen, Text } from '@impostor/ui';
 import { useQuery } from 'convex/react';
 import { ActivityIndicator, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { PlayerAvatar } from './PlayerAvatar';
 import type { RoomView } from './types';
 
 function StatusBadge({ status }: { status: RoomView['status'] }) {
@@ -30,6 +31,7 @@ export function SpectatorView({ room }: { room: RoomView }) {
   const currentSpeaker = room.players.find((p) => p.clientId === round?.currentSpeakerId);
   const activePlayers = room.players.filter((p) => !p.isSpectator);
   const spectators = room.players.filter((p) => p.isSpectator);
+  const colorByClient = new Map(room.players.map((p) => [p.clientId, p.color]));
 
   // Agrupar pistas por vuelta
   const cluesByTurn = (clues ?? []).reduce<Record<number, typeof clues>>((acc, c) => {
@@ -57,11 +59,12 @@ export function SpectatorView({ room }: { room: RoomView }) {
               <Text variant="muted" className="text-center text-sm">Todos hablaron en la vuelta {round.currentTurn}</Text>
             ) : (
               <View className="flex-row items-center gap-3">
-                <View className="h-10 w-10 rounded-full bg-pitch-500/20 border border-pitch-500/40 items-center justify-center">
-                  <Text className="text-base font-display">
-                    {currentSpeaker?.name.charAt(0).toUpperCase() ?? '?'}
-                  </Text>
-                </View>
+                <PlayerAvatar
+                  name={currentSpeaker?.name ?? '?'}
+                  color={currentSpeaker?.color}
+                  seed={currentSpeaker?.clientId ?? 'spectator'}
+                  size={40}
+                />
                 <View className="flex-1">
                   <Text variant="label" className="text-pitch-400 text-xs">DANDO PISTA</Text>
                   <Text variant="body">{currentSpeaker?.name ?? '…'}</Text>
@@ -89,8 +92,13 @@ export function SpectatorView({ room }: { room: RoomView }) {
               )}
               {cluesByTurn[turn]?.map((clue) => (
                 <Card key={clue._id} className="mb-1.5 flex-row items-start gap-3">
-                  <View className="h-7 w-7 rounded-full bg-surface-soft border border-surface-border items-center justify-center shrink-0 mt-0.5">
-                    <Text className="text-xs font-display">{clue.playerName.charAt(0).toUpperCase()}</Text>
+                  <View className="mt-0.5">
+                    <PlayerAvatar
+                      name={clue.playerName}
+                      color={colorByClient.get(clue.clientId)}
+                      seed={clue.clientId}
+                      size={28}
+                    />
                   </View>
                   <View className="flex-1">
                     <Text variant="label" className="text-zinc-500 text-xs">{clue.playerName}</Text>
@@ -114,6 +122,7 @@ export function SpectatorView({ room }: { room: RoomView }) {
           {activePlayers.map((p) => (
             <View key={p.clientId} className="flex-row items-center gap-2.5">
               <View className={`h-2 w-2 rounded-full ${p.connected ? 'bg-green-400' : 'bg-zinc-600'}`} />
+              <PlayerAvatar name={p.name} color={p.color} seed={p.clientId} size={24} />
               <Text variant="body" className="flex-1">{p.name}</Text>
               {p.isHost && (
                 <View className="px-1.5 py-0.5 rounded-full bg-gold-500/10 border border-gold-500/30">

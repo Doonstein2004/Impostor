@@ -257,6 +257,49 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-06-22 (tanda 12) — Avatares de color, presets, leaderboard, compartir, PWA, +600 personajes
+
+- **+600 personajes** en `packages/data/src/players.ts` (de 240 a ~840). Cobertura de
+  leyendas e históricos por país, actuales y jóvenes promesas, más DTs. El conteo total **no**
+  se muestra al usuario (es sorpresa). Se limpiaron 10 entradas chapuza (name ≠ fullName) y 2
+  duplicados reales (Guardado, Donnarumma). Sin IDs ni `fullName` duplicados (salvo pares
+  jugador/DT intencionales tipo Cruyff/Zidane).
+
+- **Avatares de color por jugador**:
+  - Campo `color` (optional string, key ASCII de la paleta) en `players` (schema) → **requirió push**.
+  - `apps/mobile/src/lib/avatars.ts`: paleta `AVATAR_COLORS` (12 colores), `avatarHex(key, seed)`
+    (color determinístico por clientId si no eligió) y `defaultColorKey`.
+  - `components/PlayerAvatar.tsx`: círculo con inicial pintado con el color. Cableado en Lobby,
+    Voting (prop `selected` para el voto), Reveal (ranking), SpectatorView, home.
+  - `components/ColorPicker.tsx`: fila de swatches. En el home (junto al nombre, persistido en
+    session `avatarColor`) y en el Lobby (cambia en vivo vía nueva mutation `rooms.updateProfile`).
+  - `create`/`join`/`joinAsSpectator` aceptan `color` opcional; `get` devuelve `color`.
+  - **GameRound se dejó como estaba**: sus avatares codifican estado de turno (quién habla/habló)
+    con color, más importante ahí que la identidad.
+
+- **Presets de configuración** (cliente, sin backend): en `session.ts` `configPresets` +
+  `savePreset`/`deletePreset` (persistidos, máx 12). En el Lobby (sólo host) chips para aplicar
+  y "+ Guardar actual" con input de nombre inline.
+
+- **Leaderboard / ranking**: query `stats.top` (orden: ganadas → win rate → puntaje) → **push**.
+  `components/Leaderboard.tsx` + ruta `app/leaderboard.tsx` + entrada en `_layout`. Link "🏆 Ranking"
+  en el home (junto a estadísticas). Nota: la ruta usa `router.push('/leaderboard' as never)` porque
+  los typed-routes de expo-router se regeneran al correr el dev server.
+
+- **Compartir resultado**: `lib/shareResult.ts`. En web dibuja una tarjeta PNG 1080×1080 en canvas
+  (resultado + jugador secreto + impostores + código) y usa `navigator.share({files})`, con caída a
+  descarga o portapapeles. En native comparte texto con `Share`. Botón "📤 Compartir resultado" en
+  `Reveal.tsx` (para todos).
+
+- **PWA instalable (web)**: `apps/mobile/public/` con `manifest.json`, `sw.js` (service worker
+  network-first con shell offline) e `icon.svg`. `app/+html.tsx` inyecta el manifest, theme-color,
+  metas apple y registra el SW. Expo SDK 52 copia `public/` al root del build web.
+  **Pendiente**: idealmente PNG 192/512 (ahora se usa SVG, soportado por Chrome/Edge; iOS prefiere PNG).
+
+### Pendiente próximo
+- **Audio en Android/iOS nativo**: hoy LiveKit sólo funciona en web/escritorio. Falta
+  `@livekit/react-native-webrtc` + dev build para nativo (ver "Sala de audio (LiveKit) — Fase 3").
+
 ### 2026-06-22 (tanda 11) — Rematch, auto-kick, sonidos, tutorial, estadísticas, espectador
 
 - **Revancha inmediata (`quickRematch`)**: nueva mutation en `game.ts` que salta el lobby y

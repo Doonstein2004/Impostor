@@ -8,8 +8,8 @@ const INACTIVE_KICK_MS = 3 * 60 * 1000; // 3 minutos
 
 /** Crea una sala nueva y agrega al host como primer jugador. */
 export const create = mutation({
-  args: { clientId: v.string(), name: v.string() },
-  handler: async (ctx, { clientId, name }) => {
+  args: { clientId: v.string(), name: v.string(), color: v.optional(v.string()) },
+  handler: async (ctx, { clientId, name, color }) => {
     // Genera un código único (reintenta ante colisión, muy improbable).
     let code = generateRoomCode();
     for (let i = 0; i < 5; i++) {
@@ -34,6 +34,7 @@ export const create = mutation({
       clientId,
       name,
       isHost: true,
+      color,
       connected: true,
       score: 0,
       joinedAt: Date.now(),
@@ -45,8 +46,8 @@ export const create = mutation({
 
 /** Une a un jugador a una sala por código. Idempotente por clientId. */
 export const join = mutation({
-  args: { code: v.string(), clientId: v.string(), name: v.string() },
-  handler: async (ctx, { code, clientId, name }) => {
+  args: { code: v.string(), clientId: v.string(), name: v.string(), color: v.optional(v.string()) },
+  handler: async (ctx, { code, clientId, name, color }) => {
     const room = await ctx.db
       .query('rooms')
       .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
@@ -60,7 +61,7 @@ export const join = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { connected: true, name });
+      await ctx.db.patch(existing._id, { connected: true, name, ...(color ? { color } : {}) });
       return { roomId: room._id, code: room.code };
     }
 
@@ -69,6 +70,7 @@ export const join = mutation({
       clientId,
       name,
       isHost: false,
+      color,
       connected: true,
       score: 0,
       joinedAt: Date.now(),
@@ -79,8 +81,8 @@ export const join = mutation({
 
 /** Une a alguien como espectador. Funciona en cualquier estado de la sala. */
 export const joinAsSpectator = mutation({
-  args: { code: v.string(), clientId: v.string(), name: v.string() },
-  handler: async (ctx, { code, clientId, name }) => {
+  args: { code: v.string(), clientId: v.string(), name: v.string(), color: v.optional(v.string()) },
+  handler: async (ctx, { code, clientId, name, color }) => {
     const room = await ctx.db
       .query('rooms')
       .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
@@ -93,7 +95,7 @@ export const joinAsSpectator = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { connected: true, name });
+      await ctx.db.patch(existing._id, { connected: true, name, ...(color ? { color } : {}) });
       return { roomId: room._id, code: room.code, isSpectator: existing.isSpectator ?? false };
     }
 
@@ -103,6 +105,7 @@ export const joinAsSpectator = mutation({
       name,
       isHost: false,
       isSpectator: true,
+      color,
       connected: true,
       score: 0,
       joinedAt: Date.now(),
@@ -157,6 +160,27 @@ export const kick = mutation({
       .first();
     if (!player) return;
     await ctx.db.delete(player._id);
+  },
+});
+
+/** El jugador cambia su nombre y/o color de avatar mientras está en una sala. */
+export const updateProfile = mutation({
+  args: {
+    roomId: v.id('rooms'),
+    clientId: v.string(),
+    name: v.optional(v.string()),
+    color: v.optional(v.string()),
+  },
+  handler: async (ctx, { roomId, clientId, name, color }) => {
+    const player = await ctx.db
+      .query('players')
+      .withIndex('by_room_client', (q) => q.eq('roomId', roomId).eq('clientId', clientId))
+      .first();
+    if (!player) return;
+    const patch: { name?: string; color?: string } = {};
+    if (name && name.trim().length >= 2) patch.name = name.trim();
+    if (color) patch.color = color;
+    if (Object.keys(patch).length > 0) await ctx.db.patch(player._id, patch);
   },
 });
 
@@ -228,6 +252,7 @@ export const get = query({
           name: p.name,
           isHost: p.isHost,
           isSpectator: p.isSpectator ?? false,
+          color: p.color ?? null,
           connected: p.connected,
           lastActiveAt: p.lastActiveAt,
           score: p.score,

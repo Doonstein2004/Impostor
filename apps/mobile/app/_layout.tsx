@@ -43,6 +43,7 @@ export default function RootLayout() {
                 se duplica el inset del status bar (espacio vacío arriba). */}
             <Stack.Screen name="room/[code]" options={{ headerShown: false }} />
             <Stack.Screen name="stats" options={{ title: 'Mis estadísticas', headerBackTitle: 'Volver' }} />
+            <Stack.Screen name="leaderboard" options={{ title: 'Ranking', headerBackTitle: 'Volver' }} />
           </Stack>
           {/* Toast global por encima de todo */}
           <Toast />

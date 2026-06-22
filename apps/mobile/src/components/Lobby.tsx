@@ -24,6 +24,8 @@ import Animated, { FadeIn, FadeInDown, FadeInLeft } from 'react-native-reanimate
 import { useSession } from '@/lib/session';
 import { runAction } from '@/lib/useToast';
 import { TutorialButton } from './TutorialModal';
+import { PlayerAvatar } from './PlayerAvatar';
+import { ColorPicker } from './ColorPicker';
 import { POSITION_COLORS } from './types';
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -352,12 +354,6 @@ function ConfigTabs({
                   );
                 })}
               </View>
-              {commMode === 'audio' && (
-                <Text variant="label" className="text-zinc-600 text-xs">
-                  🎙️ Sala de voz por LiveKit. Funciona en web/escritorio (en el celular, abrí
-                  el juego desde el navegador). Requiere configurar el server — ver docs/AUDIO.md.
-                </Text>
-              )}
             </View>
 
             <View className="gap-2">
@@ -490,12 +486,23 @@ function ConfigTabs({
 // ─── Lobby ────────────────────────────────────────────────────────────────
 
 export function Lobby({ room }: { room: RoomView }) {
-  const { clientId, setLeaving } = useSession();
+  const { clientId, setLeaving, avatarColor, setAvatarColor, configPresets, savePreset, deletePreset } = useSession();
+  const [presetName, setPresetName] = useState('');
+  const [namingPreset, setNamingPreset] = useState(false);
   const isHost = room.hostClientId === clientId;
   const updateConfig = useMutation(api.rooms.updateConfig);
   const startRound = useMutation(api.game.startRound);
   const leave = useMutation(api.rooms.leave);
   const kickPlayer = useMutation(api.rooms.kick);
+  const updateProfile = useMutation(api.rooms.updateProfile);
+
+  async function pickColor(key: string) {
+    setAvatarColor(key);
+    await runAction(
+      () => updateProfile({ roomId: room._id, clientId, color: key }),
+      'No se pudo cambiar el color.',
+    );
+  }
 
   const [codeCopied, setCodeCopied] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
@@ -520,16 +527,39 @@ export function Lobby({ room }: { room: RoomView }) {
     );
   }
 
-  async function invite() {
+  async function applyConfigPreset(preset: { config: GameConfig }) {
+    if (!isHost) return;
+    setStartError(null);
+    await runAction(
+      () => updateConfig({ roomId: room._id, clientId, config: preset.config }),
+      'No se pudo aplicar el preset.',
+    );
+  }
+
+  function handleSavePreset() {
+    const n = presetName.trim();
+    if (n.length < 1) return;
+    savePreset(n, config);
+    setPresetName('');
+    setNamingPreset(false);
+  }
+
+  async function copyLink() {
+    const url = buildJoinUrl(room.code) ?? room.code;
+    await Clipboard.setStringAsync(url);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+  }
+
+  async function shareLink() {
     const url = buildJoinUrl(room.code);
     const message = url
-      ? `¡Unite a mi sala de Impostor Fútbol! Entrá directo: ${url}\n(o usá el código ${room.code})`
+      ? `¡Unite a mi sala de Impostor Fútbol! Entrá directo: ${url}`
       : `¡Unite a mi sala de Impostor Fútbol! Código: ${room.code}`;
     try {
       await Share.share({ message });
     } catch {
-      await Clipboard.setStringAsync(url ?? room.code);
-      Alert.alert('Enlace copiado', url ?? room.code);
+      await copyLink();
     }
   }
 
@@ -620,7 +650,10 @@ export function Lobby({ room }: { room: RoomView }) {
               <Text variant="label" className="text-zinc-600 text-xs">Tocá el código para copiarlo</Text>
             )}
           </View>
-          <Button title="📤 Invitar amigos" variant="secondary" onPress={invite} className="w-full mt-1" />
+          <View className="flex-row gap-2 w-full mt-1">
+            <Button title="🔗 Copiar enlace" variant="secondary" onPress={copyLink} className="flex-1" />
+            <Button title="📤 Compartir" variant="secondary" onPress={shareLink} className="flex-1" />
+          </View>
         </Card>
       </Animated.View>
 
@@ -643,9 +676,7 @@ export function Lobby({ room }: { room: RoomView }) {
             >
               <View className="flex-row items-center gap-2">
                 <View className={`h-2 w-2 rounded-full ${presenceDot(p)}`} />
-                <View className="h-8 w-8 rounded-full bg-surface-soft items-center justify-center">
-                  <Text className="text-sm font-display text-white">{p.name.charAt(0).toUpperCase()}</Text>
-                </View>
+                <PlayerAvatar name={p.name} color={p.color} seed={p.clientId} size={32} />
                 <View>
                   <Text variant="body">{p.name}</Text>
                   {presenceLabel(p) && (
@@ -699,6 +730,22 @@ export function Lobby({ room }: { room: RoomView }) {
         </Card>
       </Animated.View>
 
+      {/* Tu avatar — color identitario */}
+      <Animated.View entering={FadeInDown.delay(160).duration(400)}>
+        <Card className="mb-4 gap-3">
+          <View className="flex-row items-center gap-3">
+            <PlayerAvatar
+              name={room.players.find((p) => p.clientId === clientId)?.name ?? '?'}
+              color={avatarColor}
+              seed={clientId}
+              size={40}
+            />
+            <Text variant="title" className="text-base">🎨 Tu color</Text>
+          </View>
+          <ColorPicker value={avatarColor} onChange={pickColor} label="" />
+        </Card>
+      </Animated.View>
+
       {/* Configuración — sólo host */}
       {isHost && (
         <Animated.View entering={FadeInDown.delay(180).duration(400)}>
@@ -708,6 +755,63 @@ export function Lobby({ room }: { room: RoomView }) {
               {poolSize} pers. · {maxRounds > 0 ? `${maxRounds}r` : '∞r'} · {config.turnSeconds > 0 ? `${config.turnSeconds}s` : '♾️'}
             </Text>
           </View>
+          {/* Presets de configuración */}
+          <Card className="mb-3 gap-2.5">
+            <View className="flex-row items-center justify-between">
+              <Text variant="label" className="text-zinc-400 text-xs">⭐ Presets</Text>
+              {namingPreset ? null : (
+                <Pressable onPress={() => setNamingPreset(true)} hitSlop={6}>
+                  <Text variant="label" className="text-pitch-400 text-xs">+ Guardar actual</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {namingPreset && (
+              <View className="flex-row items-center gap-2">
+                <TextInput
+                  value={presetName}
+                  onChangeText={setPresetName}
+                  placeholder="Nombre del preset"
+                  placeholderTextColor="#52525b"
+                  maxLength={24}
+                  autoFocus
+                  className="flex-1 h-9 rounded-xl border border-surface-border bg-surface-soft px-3 text-white text-sm"
+                />
+                <Pressable
+                  onPress={handleSavePreset}
+                  className="px-3 py-2 rounded-xl border border-pitch-500/50 bg-pitch-500/10"
+                >
+                  <Text className="text-pitch-400 text-xs font-display">Guardar</Text>
+                </Pressable>
+                <Pressable onPress={() => { setNamingPreset(false); setPresetName(''); }} className="px-2 py-2">
+                  <Text className="text-zinc-500 text-xs">✕</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {configPresets.length === 0 ? (
+              <Text variant="muted" className="text-xs">
+                Guardá tu configuración favorita para reutilizarla en otra sala.
+              </Text>
+            ) : (
+              <View className="flex-row flex-wrap gap-1.5">
+                {configPresets.map((preset) => (
+                  <View
+                    key={preset.id}
+                    className="flex-row items-center gap-1 rounded-full border border-gold-500/30 bg-gold-500/10 pl-3 pr-1.5 py-1"
+                  >
+                    <Pressable onPress={() => applyConfigPreset(preset)} hitSlop={4}>
+                      <Text className="text-gold-400 text-xs font-body">{preset.name}</Text>
+                    </Pressable>
+                    <Pressable onPress={() => deletePreset(preset.id)} hitSlop={6} className="px-1">
+                      <Text className="text-zinc-500 text-xs">✕</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            )}
+          </Card>
+
           <Card className="mb-4">
             <ConfigTabs config={config} onPatch={patch} />
           </Card>

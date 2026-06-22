@@ -12,9 +12,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useSession } from '@/lib/session';
+import { Platform } from 'react-native';
 import { useChatInset } from '@/lib/useChatDock';
 import { runAction } from '@/lib/useToast';
 import { useSounds } from '@/lib/useSounds';
+import { shareResultCard } from '@/lib/shareResult';
+import { PlayerAvatar } from './PlayerAvatar';
 import { POSITION_COLORS } from './types';
 import type { RoomView } from './types';
 
@@ -36,11 +39,7 @@ function RankingRow({ player, rank, prevScore, animated }: {
           <Text className="text-2xl w-8 text-center">
             {rank < 3 ? MEDALS[rank] : `${rank + 1}.`}
           </Text>
-          <View className="h-10 w-10 rounded-full bg-surface-soft border border-surface-border items-center justify-center">
-            <Text variant="body" className="text-base font-display">
-              {player.name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <PlayerAvatar name={player.name} color={player.color} seed={player.clientId} size={40} />
           <Text variant="body">{player.name}</Text>
         </View>
         <View className="items-end">
@@ -106,6 +105,33 @@ export function Reveal({ room }: { room: RoomView }) {
 
   // Ranking actual ordenado por score
   const ranking = [...room.players].sort((a, b) => b.score - a.score);
+
+  const resultTitle = innocentsWin
+    ? '¡INOCENTES GANAN!'
+    : impostorWonGuess
+    ? '¡EL IMPOSTOR ADIVINÓ!'
+    : '¡IMPOSTOR ESCAPA!';
+  const resultEmoji = innocentsWin ? '🏆' : impostorWonGuess ? '🎯' : '🕵️';
+
+  function joinUrl(): string | null {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      return `${window.location.origin}/?code=${room.code}`;
+    }
+    const base = process.env.EXPO_PUBLIC_APP_URL;
+    return base ? `${base.replace(/\/$/, '')}/?code=${room.code}` : null;
+  }
+
+  async function handleShare() {
+    await shareResultCard({
+      title: resultTitle,
+      emoji: resultEmoji,
+      secretName: data?.secretCharacter?.name ?? '—',
+      secretSub: data?.secretCharacter?.club ?? data?.secretCharacter?.fullName ?? undefined,
+      impostors: impostors.map((p) => p.name),
+      code: room.code,
+      url: joinUrl(),
+    });
+  }
 
   // Detalle de votos: cada acusado, cuántos votos y quién lo votó.
   const nameById = new Map(room.players.map((p) => [p.clientId, p.name]));
@@ -196,6 +222,11 @@ export function Reveal({ room }: { room: RoomView }) {
             </Text>
           ))}
         </Card>
+      </Animated.View>
+
+      {/* Compartir resultado */}
+      <Animated.View entering={FadeInDown.delay(850).duration(400)} className="mb-4">
+        <Button title="📤 Compartir resultado" variant="secondary" onPress={handleShare} />
       </Animated.View>
 
       {/* Detalle de votación */}

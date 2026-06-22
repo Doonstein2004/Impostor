@@ -15,6 +15,7 @@ export interface RoomView {
     name: string;
     isHost: boolean;
     isSpectator: boolean;
+    color: string | null;
     connected: boolean;
     lastActiveAt?: number;
     score: number;
