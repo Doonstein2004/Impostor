@@ -13,7 +13,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.doonbro.impostorfutbol"
+      "bundleIdentifier": "com.doonbro.impostorfutbol",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Usamos el micrófono para la sala de audio multijugador."
+      }
     },
     "android": {
       "package": "com.doonbro.impostorfutbol"

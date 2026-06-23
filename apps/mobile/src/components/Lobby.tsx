@@ -730,20 +730,12 @@ export function Lobby({ room }: { room: RoomView }) {
         </Card>
       </Animated.View>
 
-      {/* Tu avatar — color identitario */}
+      {/* Tu color — compacto, sin Card */}
       <Animated.View entering={FadeInDown.delay(160).duration(400)}>
-        <Card className="mb-4 gap-3">
-          <View className="flex-row items-center gap-3">
-            <PlayerAvatar
-              name={room.players.find((p) => p.clientId === clientId)?.name ?? '?'}
-              color={avatarColor}
-              seed={clientId}
-              size={40}
-            />
-            <Text variant="title" className="text-base">🎨 Tu color</Text>
-          </View>
+        <View className="flex-row items-center gap-2 mb-4 px-1">
+          <Text variant="label" className="text-zinc-600 text-xs">Color:</Text>
           <ColorPicker value={avatarColor} onChange={pickColor} label="" />
-        </Card>
+        </View>
       </Animated.View>
 
       {/* Configuración — sólo host */}

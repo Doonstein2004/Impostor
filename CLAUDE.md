@@ -296,9 +296,23 @@ pnpm --filter @impostor/mobile run export
   metas apple y registra el SW. Expo SDK 52 copia `public/` al root del build web.
   **Pendiente**: idealmente PNG 192/512 (ahora se usa SVG, soportado por Chrome/Edge; iOS prefiere PNG).
 
+### 2026-06-23 (tanda 13) — Audio nativo + chat UX + colores discretos
+
+- **Audio nativo con LiveKit (Android/iOS)**: `AudioRoom.tsx` reescrito con implementación real.
+  - Paquetes: `@livekit/react-native` + `@livekit/react-native-webrtc` (parchean los globals de WebRTC).
+  - `registerGlobals()` al inicio del módulo. `Room`/`RoomEvent` siguen de `livekit-client` (funciona porque los globals quedan patched).
+  - `AudioSession.startAudioSession()` antes de conectar / `stopAudioSession()` al desmontar — routing nativo (altavoz/auricular/bluetooth).
+  - Sin adjuntar `<audio>` al DOM (el audio nativo se reproduce solo). Sin lockeo de autoplay.
+  - Permisos: `RECORD_AUDIO` + `MODIFY_AUDIO_SETTINGS` en `AndroidManifest.xml`; `NSMicrophoneUsageDescription` en `app.json`.
+  - UI del dock idéntica a la versión web.
+  - **REQUIERE build nativo** (`expo run:android` o EAS). No funciona en Expo Go.
+
+- **Chat UX fixes**: botón colapsar pasa de `▴` (invisible) a círculo visible con `✕`; altura máx. de mensajes 300→180px.
+- **Colores más discretos**: swatches 30→24px; el Card grande "Tu color" del Lobby reemplazado por fila compacta inline.
+
 ### Pendiente próximo
-- **Audio en Android/iOS nativo**: hoy LiveKit sólo funciona en web/escritorio. Falta
-  `@livekit/react-native-webrtc` + dev build para nativo (ver "Sala de audio (LiveKit) — Fase 3").
+- **Build nativo**: necesario para activar el audio en Android/iOS. Ver "Android — Requisitos de build" (Java 17).
+- **PWA icon PNG**: idealmente PNG 192/512 para iOS (hoy SVG funciona en Chrome/Edge).
 
 ### 2026-06-22 (tanda 11) — Rematch, auto-kick, sonidos, tutorial, estadísticas, espectador
 

@@ -15,7 +15,7 @@ export function ColorPicker({
   return (
     <View className="gap-2">
       {label ? <Text variant="label" className="text-zinc-500 text-xs">{label}</Text> : null}
-      <View className="flex-row flex-wrap gap-2">
+      <View className="flex-row flex-wrap gap-1.5">
         {AVATAR_COLORS.map((c) => {
           const active = value === c.key;
           return (
@@ -24,16 +24,16 @@ export function ColorPicker({
               onPress={() => onChange(c.key)}
               accessibilityLabel={c.label}
               style={{
-                width: 30,
-                height: 30,
-                borderRadius: 15,
+                width: 24,
+                height: 24,
+                borderRadius: 12,
                 backgroundColor: c.hex,
-                borderWidth: active ? 3 : 0,
+                borderWidth: active ? 2.5 : 0,
                 borderColor: '#ffffff',
               }}
               className="active:opacity-70 items-center justify-center"
             >
-              {active ? <Text className="text-white" style={{ fontSize: 13 }}>✓</Text> : null}
+              {active ? <Text className="text-white" style={{ fontSize: 11 }}>✓</Text> : null}
             </Pressable>
           );
         })}

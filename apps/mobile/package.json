@@ -28,6 +28,8 @@
     "@impostor/core": "workspace:*",
     "@impostor/data": "workspace:*",
     "@impostor/ui": "workspace:*",
+    "@livekit/react-native": "^2.11.1",
+    "@livekit/react-native-webrtc": "^144.1.1",
     "@react-native-async-storage/async-storage": "1.23.1",
     "convex": "^1.17.4",
     "expo": "~52.0.0",

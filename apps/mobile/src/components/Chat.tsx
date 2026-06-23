@@ -240,7 +240,7 @@ export function GameChat({ room }: { room: RoomView }) {
             }}
           >
             {/* Historial (al expandir) */}
-            {expanded && (audioMode ? audioPlaceholder : renderMessages({ maxHeight: 300 }))}
+            {expanded && (audioMode ? audioPlaceholder : renderMessages({ maxHeight: 180 }))}
 
             {/* Barra superior: último mensaje + toggle */}
             <Pressable
@@ -280,7 +280,17 @@ export function GameChat({ room }: { room: RoomView }) {
                   <Text style={{ fontSize: 13, color: '#52525b' }} numberOfLines={1}>Chat de sala</Text>
                 )}
               </View>
-              <Text style={{ fontSize: 12, color: '#52525b' }}>{expanded ? '▾' : '▴'}</Text>
+              <View
+                style={{
+                  width: 28, height: 28, borderRadius: 14,
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: expanded ? 'rgba(255,255,255,0.09)' : 'transparent',
+                }}
+              >
+                <Text style={{ fontSize: expanded ? 15 : 12, color: expanded ? '#e4e4e7' : '#71717a' }}>
+                  {expanded ? '✕' : '▴'}
+                </Text>
+              </View>
             </Pressable>
 
             {/* Input siempre visible (salvo audio) */}
