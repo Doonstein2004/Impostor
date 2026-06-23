@@ -17,6 +17,7 @@ import { useChatInset } from '@/lib/useChatDock';
 import { runAction } from '@/lib/useToast';
 import { useSounds } from '@/lib/useSounds';
 import { shareResultCard } from '@/lib/shareResult';
+import { ConfettiBlast } from './Confetti';
 import { PlayerAvatar } from './PlayerAvatar';
 import { POSITION_COLORS } from './types';
 import type { RoomView } from './types';
@@ -140,6 +141,8 @@ export function Reveal({ room }: { room: RoomView }) {
     .sort((a, b) => b.count - a.count);
 
   return (
+    <>
+    <ConfettiBlast active={!!data && innocentsWin} />
     <Screen scroll>
       {/* Resultado dramático */}
       <Animated.View entering={FadeIn.duration(300)} className="flex-row justify-center mb-2">
@@ -368,5 +371,6 @@ export function Reveal({ room }: { room: RoomView }) {
       </Animated.View>
       <View style={{ height: chatInset }} />
     </Screen>
+    </>
   );
 }

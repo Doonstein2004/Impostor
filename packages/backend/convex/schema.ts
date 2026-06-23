@@ -33,6 +33,8 @@ export const gameConfigValidator = v.object({
   voteSeconds: v.optional(v.number()),
   /** Modo de comunicación: 'texto' (chat) o 'audio' (sala de voz). */
   commMode: v.optional(v.union(v.literal('texto'), v.literal('audio'))),
+  /** Penaliza con -1 punto a quien vota por un inocente cuando los inocentes ganan. */
+  penaltyWrongVote: v.optional(v.boolean()),
 });
 
 export const roomStatusValidator = v.union(

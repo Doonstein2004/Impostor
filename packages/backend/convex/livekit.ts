@@ -24,7 +24,13 @@ export const token = action({
     const room = await ctx.runQuery(api.rooms.get, { code: roomCode });
     if (!room) throw new Error('Sala no encontrada');
 
-    const lkRoom = `impostor-${room.code}`;
+    // Solo miembros de la sala pueden obtener un token de audio
+    const isMember = room.players.some((p) => p.clientId === clientId);
+    if (!isMember) throw new Error('No sos parte de esta sala');
+
+    // Usa el ID interno de Convex (opaco, no adivinable) como nombre de sala en LiveKit
+    // en lugar del código público de 4 letras.
+    const lkRoom = `impostor-${room._id}`;
     const at = new AccessToken(apiKey, apiSecret, { identity: clientId, name, ttl: '2h' });
     at.addGrant({ roomJoin: true, room: lkRoom, canPublish: true, canSubscribe: true });
 

@@ -1,6 +1,8 @@
 import {
+  DEFAULT_CONFIG,
   ERAS,
   ERA_LABELS,
+  GAME_MODES,
   ROLES,
   ROLE_LABELS,
   ZONES,
@@ -8,6 +10,7 @@ import {
   filterPool,
   type Era,
   type GameConfig,
+  type GameMode,
   type Role,
   type Zone,
 } from '@impostor/core';
@@ -83,6 +86,64 @@ const TABS: { key: ConfigTab; label: string }[] = [
   { key: 'pool',    label: '👥 Jugadores' },
   { key: 'reglas',  label: '⏱️ Reglas' },
 ];
+
+// ─── Modos de juego ──────────────────────────────────────────────────────────
+
+function GameModesSelector({ onApply }: { onApply: (c: GameConfig) => void }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const mode = GAME_MODES.find((m) => m.id === expandedId) ?? null;
+
+  return (
+    <Card className="mb-3 gap-2.5">
+      <Text variant="label" className="text-zinc-400 text-xs">🎮 Modo de juego</Text>
+      <View className="flex-row flex-wrap gap-1.5">
+        {GAME_MODES.map((m: GameMode) => (
+          <Pressable
+            key={m.id}
+            onPress={() => setExpandedId(expandedId === m.id ? null : m.id)}
+            className={`flex-row items-center gap-1.5 rounded-full border px-3 py-1.5 ${
+              expandedId === m.id
+                ? 'border-pitch-500/50 bg-pitch-500/15'
+                : 'border-surface-border bg-surface-soft'
+            }`}
+          >
+            <Text style={{ fontSize: 13 }}>{m.emoji}</Text>
+            <Text
+              variant="label"
+              className={`text-xs ${expandedId === m.id ? 'text-pitch-400' : 'text-zinc-400'}`}
+            >
+              {m.name}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {mode && (
+        <Animated.View entering={FadeIn.duration(200)} className="gap-2">
+          <View className="rounded-xl border border-surface-border bg-surface-card px-3 py-2.5 gap-1.5">
+            <Text variant="label" className="text-zinc-200 text-xs">
+              {mode.emoji} {mode.name.toUpperCase()} — {mode.description}
+            </Text>
+            {mode.details.map((d, i) => (
+              <View key={i} className="flex-row items-start gap-2">
+                <Text className="text-pitch-500 text-xs leading-5">›</Text>
+                <Text variant="muted" className="text-xs flex-1 leading-5">{d}</Text>
+              </View>
+            ))}
+          </View>
+          <Button
+            title={`Aplicar modo ${mode.name}`}
+            variant="secondary"
+            onPress={() => {
+              onApply({ ...DEFAULT_CONFIG, ...mode.config });
+              setExpandedId(null);
+            }}
+          />
+        </Animated.View>
+      )}
+    </Card>
+  );
+}
 
 // ─── Inline config tabs ────────────────────────────────────────────────────
 
@@ -527,6 +588,15 @@ export function Lobby({ room }: { room: RoomView }) {
     );
   }
 
+  async function applyMode(c: GameConfig) {
+    if (!isHost) return;
+    setStartError(null);
+    await runAction(
+      () => updateConfig({ roomId: room._id, clientId, config: c }),
+      'No se pudo aplicar el modo.',
+    );
+  }
+
   async function applyConfigPreset(preset: { config: GameConfig }) {
     if (!isHost) return;
     setStartError(null);
@@ -747,6 +817,9 @@ export function Lobby({ room }: { room: RoomView }) {
               {poolSize} pers. · {maxRounds > 0 ? `${maxRounds}r` : '∞r'} · {config.turnSeconds > 0 ? `${config.turnSeconds}s` : '♾️'}
             </Text>
           </View>
+          {/* Modos de juego */}
+          <GameModesSelector onApply={applyMode} />
+
           {/* Presets de configuración */}
           <Card className="mb-3 gap-2.5">
             <View className="flex-row items-center justify-between">

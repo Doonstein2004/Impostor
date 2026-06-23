@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toast } from '@/components/Toast';
 import { convex } from '@/lib/convex';
 import { useSession } from '@/lib/session';
@@ -28,6 +29,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
+        <ErrorBoundary>
         <ConvexProvider client={convex}>
           <StatusBar style="light" />
           <Stack
@@ -48,6 +50,7 @@ export default function RootLayout() {
           {/* Toast global por encima de todo */}
           <Toast />
         </ConvexProvider>
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

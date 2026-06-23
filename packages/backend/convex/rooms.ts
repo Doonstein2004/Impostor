@@ -5,11 +5,21 @@ import { internal } from './_generated/api';
 import { gameConfigValidator } from './schema';
 
 const INACTIVE_KICK_MS = 3 * 60 * 1000; // 3 minutos
+const MAX_NAME_LEN = 30;
+const MAX_SPECTATORS = 20;
+
+function validateName(name: string) {
+  const trimmed = name.trim();
+  if (trimmed.length < 2) throw new Error('El nombre debe tener al menos 2 caracteres');
+  if (trimmed.length > MAX_NAME_LEN) throw new Error(`El nombre es muy largo (máx. ${MAX_NAME_LEN} caracteres)`);
+  return trimmed;
+}
 
 /** Crea una sala nueva y agrega al host como primer jugador. */
 export const create = mutation({
   args: { clientId: v.string(), name: v.string(), color: v.optional(v.string()) },
   handler: async (ctx, { clientId, name, color }) => {
+    const validName = validateName(name);
     // Genera un código único (reintenta ante colisión, muy improbable).
     let code = generateRoomCode();
     for (let i = 0; i < 5; i++) {
@@ -32,7 +42,7 @@ export const create = mutation({
     await ctx.db.insert('players', {
       roomId,
       clientId,
-      name,
+      name: validName,
       isHost: true,
       color,
       connected: true,
@@ -48,6 +58,8 @@ export const create = mutation({
 export const join = mutation({
   args: { code: v.string(), clientId: v.string(), name: v.string(), color: v.optional(v.string()) },
   handler: async (ctx, { code, clientId, name, color }) => {
+    const validName = validateName(name);
+
     const room = await ctx.db
       .query('rooms')
       .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
@@ -61,14 +73,14 @@ export const join = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { connected: true, name, ...(color ? { color } : {}) });
+      await ctx.db.patch(existing._id, { connected: true, name: validName, ...(color ? { color } : {}) });
       return { roomId: room._id, code: room.code };
     }
 
     await ctx.db.insert('players', {
       roomId: room._id,
       clientId,
-      name,
+      name: validName,
       isHost: false,
       color,
       connected: true,
@@ -83,6 +95,8 @@ export const join = mutation({
 export const joinAsSpectator = mutation({
   args: { code: v.string(), clientId: v.string(), name: v.string(), color: v.optional(v.string()) },
   handler: async (ctx, { code, clientId, name, color }) => {
+    const validName = validateName(name);
+
     const room = await ctx.db
       .query('rooms')
       .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
@@ -95,14 +109,24 @@ export const joinAsSpectator = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { connected: true, name, ...(color ? { color } : {}) });
+      await ctx.db.patch(existing._id, { connected: true, name: validName, ...(color ? { color } : {}) });
       return { roomId: room._id, code: room.code, isSpectator: existing.isSpectator ?? false };
+    }
+
+    // Límite de espectadores para evitar flooding
+    const allPlayers = await ctx.db
+      .query('players')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+    const spectatorCount = allPlayers.filter((p) => p.isSpectator).length;
+    if (spectatorCount >= MAX_SPECTATORS) {
+      throw new Error(`La sala ya tiene demasiados espectadores (máx. ${MAX_SPECTATORS})`);
     }
 
     await ctx.db.insert('players', {
       roomId: room._id,
       clientId,
-      name,
+      name: validName,
       isHost: false,
       isSpectator: true,
       color,

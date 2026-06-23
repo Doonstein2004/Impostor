@@ -53,6 +53,19 @@ export const react = mutation({
   handler: async (ctx, { clueId, reactorClientId, emoji }) => {
     if (!ALLOWED_EMOJIS.includes(emoji)) throw new Error('Emoji no permitido');
 
+    // Solo miembros de la sala pueden reaccionar
+    const clue = await ctx.db.get(clueId);
+    if (!clue) throw new Error('La pista no existe');
+    const round = await ctx.db.get(clue.roundId);
+    if (!round) throw new Error('La ronda no existe');
+    const reactor = await ctx.db
+      .query('players')
+      .withIndex('by_room_client', (q) =>
+        q.eq('roomId', round.roomId).eq('clientId', reactorClientId),
+      )
+      .first();
+    if (!reactor) throw new Error('No sos parte de esta sala');
+
     const existing = await ctx.db
       .query('reactions')
       .withIndex('by_clue_reactor', (q) =>

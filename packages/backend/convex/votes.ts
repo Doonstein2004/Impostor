@@ -8,6 +8,24 @@ export const cast = mutation({
     const round = await ctx.db.get(roundId);
     if (!round || round.status !== 'voting') throw new Error('La votación no está abierta');
 
+    // Solo jugadores activos (no espectadores) pueden votar
+    const voter = await ctx.db
+      .query('players')
+      .withIndex('by_room_client', (q) =>
+        q.eq('roomId', round.roomId).eq('clientId', voterClientId),
+      )
+      .first();
+    if (!voter || voter.isSpectator) throw new Error('No podés votar en esta partida');
+
+    // El objetivo debe ser un jugador activo de esta sala (no un espectador ni un extraño)
+    const target = await ctx.db
+      .query('players')
+      .withIndex('by_room_client', (q) =>
+        q.eq('roomId', round.roomId).eq('clientId', targetClientId),
+      )
+      .first();
+    if (!target || target.isSpectator) throw new Error('El objetivo no es un jugador válido');
+
     const existing = await ctx.db
       .query('votes')
       .withIndex('by_round_voter', (q) =>

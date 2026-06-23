@@ -1,9 +1,10 @@
 import { api } from '@impostor/backend/api';
 import { Screen, Text } from '@impostor/ui';
+
 import { useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { AudioRoom } from '@/components/AudioRoom';
 import { GameChat } from '@/components/Chat';
 import { GameRound } from '@/components/GameRound';
@@ -13,6 +14,7 @@ import { Reveal } from '@/components/Reveal';
 import { SpectatorView } from '@/components/SpectatorView';
 import { TutorialModal } from '@/components/TutorialModal';
 import { Voting } from '@/components/Voting';
+import { SkeletonRoomLoading } from '@/components/Skeleton';
 import { useSession } from '@/lib/session';
 import { usePresence } from '@/lib/usePresence';
 import { toast } from '@/lib/useToast';
@@ -70,13 +72,7 @@ export default function RoomScreen() {
   }, [room, clientId]);
 
   if (room === undefined) {
-    return (
-      <Screen>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#10b981" />
-        </View>
-      </Screen>
-    );
+    return <SkeletonRoomLoading />;
   }
 
   if (room === null) {

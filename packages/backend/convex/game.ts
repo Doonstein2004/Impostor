@@ -396,10 +396,42 @@ export const submitImpostorGuess = mutation({
       .collect();
 
     const impostors = new Set(round.impostorClientIds);
+    const config = room.config as GameConfig;
+
+    // Calculamos todos los deltas de score en un solo Map para evitar lecturas stale
+    // al aplicar el bonus y la penalidad en la misma transacción.
+    const scoreDeltas = new Map<string, number>(players.map((p) => [p.clientId, 0]));
+
     for (const p of players) {
       const isImpostor = impostors.has(p.clientId);
-      if (impostorWonGuess && isImpostor) await ctx.db.patch(p._id, { score: p.score + 2 });
-      if (!impostorWonGuess && !isImpostor) await ctx.db.patch(p._id, { score: p.score + 1 });
+      if (impostorWonGuess && isImpostor) {
+        scoreDeltas.set(p.clientId, 2);
+      } else if (!impostorWonGuess && !isImpostor) {
+        scoreDeltas.set(p.clientId, 1);
+      }
+    }
+
+    // Penalidad por votar mal: -1 al inocente que votó a otro inocente (solo si innocentsWin).
+    if (!impostorWonGuess && config.penaltyWrongVote) {
+      const voteRows = await ctx.db
+        .query('votes')
+        .withIndex('by_round', (q) => q.eq('roundId', roundId))
+        .collect();
+      for (const vote of voteRows) {
+        const voterIsImpostor = impostors.has(vote.voterClientId);
+        const targetIsImpostor = impostors.has(vote.targetClientId);
+        if (!voterIsImpostor && !targetIsImpostor) {
+          scoreDeltas.set(vote.voterClientId, (scoreDeltas.get(vote.voterClientId) ?? 0) - 1);
+        }
+      }
+    }
+
+    // Aplicar todos los deltas en un único pase (score nunca baja de 0)
+    const playerMap = new Map(players.map((p) => [p.clientId, p]));
+    for (const [cId, delta] of scoreDeltas) {
+      if (delta === 0) continue;
+      const p = playerMap.get(cId);
+      if (p) await ctx.db.patch(p._id, { score: Math.max(0, p.score + delta) });
     }
 
     await ctx.db.patch(round._id, {
