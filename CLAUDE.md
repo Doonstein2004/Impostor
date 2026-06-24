@@ -257,6 +257,54 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-06-24 (tanda 14) — Salas con contraseña, límite de jugadores, rediseño de pistas, abstención, podio y sync script
+
+- **Salas con contraseña**: campo `password` (optional string) en la tabla `rooms`. El host puede
+  agregar/cambiar/borrar la contraseña desde el Lobby con la nueva mutation `rooms.updatePassword`.
+  `rooms.join` y `rooms.joinAsSpectator` validan la contraseña para jugadores nuevos (los que ya
+  estaban en la sala pasan sin revalidar). `rooms.get` expone `hasPassword: boolean` (no la clave).
+  En el home, el formulario de "Unirme" muestra el campo de contraseña de forma lazy (solo aparece
+  si el primer intento falla con error "contraseña").
+
+- **Límite de jugadores configurable**: campo `maxPlayers` en `GameConfig` (4/5/6/8/10, default 10).
+  Selector de chips en la tab "Partida" del Lobby. `rooms.join` lo enforcea para jugadores nuevos.
+  El badge de jugadores en el Lobby muestra `{actual}/{máx}` dinámicamente.
+
+- **Historial de personajes en Lobby**: sección colapsable "📋 Jugados esta sesión (N)" visible para
+  todos. Muestra los personajes usados en la sesión actual con emoji de zona + nombre. Los IDs vienen
+  de `room.usedCharacterIds`; se cruzan con `CHARACTERS` del data package en el cliente.
+
+- **Rediseño de ClueCard** (`components/GameRound.tsx`):
+  - Barra de color a la izquierda (4px) con el `avatarHex` del jugador que dio la pista.
+  - Animación `FadeInLeft.springify()` al aparecer (antes era `FadeInDown`).
+  - Reacciones colapsadas: solo se muestran las activas (conteo > 0 o la propia). Botón `+`
+    para expandir todas, `−` para colapsar. Elimina el `ScrollView` horizontal innecesario.
+  - `CluesFeed` recibe prop `players: RoomView['players']` y construye un `colorMap` de clientId →
+    hex para pasarle `playerColor` a cada `ClueCard`.
+  - **Por qué**: con 3 vueltas × 6 jugadores aparecían 18 cajas grandes. Las tarjetas compactas
+    permiten ver más pistas sin hacer scroll, y el color identifica al autor de un vistazo.
+
+- **Abstención en votación**:
+  - Botón "⚖️ Abstenerme" bajo la lista de jugadores (solo visible si no votaste aún).
+  - Implementado como auto-voto (`voterClientId === targetClientId`). No requiere cambios de schema.
+  - `game.ts reveal`: filtra self-votes antes de llamar a `tallyVotes` (abstenciones no cuentan).
+  - `game.ts submitImpostorGuess`: la penalidad de -1 también excluye abstenciones.
+  - `game.ts getReveal`: separa votos reales de abstenciones; devuelve `abstainedClientIds: string[]`
+    y `totalVotes` ya excluye las abstenciones.
+  - `Reveal.tsx`: chips grises "⚖️ Se abstuvieron" debajo del detalle de votos.
+  - **Requirió push a Convex** (cambia el comportamiento de `reveal` y `getReveal`).
+
+- **Podio al fin de sesión** (`Reveal.tsx`):
+  - Cuando `isSessionOver`, en vez de una línea de texto aparece: trofeo 🏆, nombre del campeón
+    en dorado, y filas de plata/bronce con `PlayerAvatar` + puntaje para los puestos 2 y 3.
+
+- **Script de sync workspace** (`scripts/sync-workspace.js` + `pnpm sync`):
+  - Copia los archivos fuente modificados de `packages/{backend,core,data,ui}` a
+    `apps/mobile/node_modules/@impostor/*` (solo los más nuevos que su destino, es rápido).
+  - Necesario porque en Windows, pnpm usa hardlinks (no junctions/symlinks) para workspace packages.
+    TypeScript en `apps/mobile` lee los copies de `node_modules`, no la fuente real.
+  - Uso: `pnpm sync` antes de `pnpm typecheck` si cambiaste algo en `packages/`.
+
 ### 2026-06-22 (tanda 12) — Avatares de color, presets, leaderboard, compartir, PWA, +600 personajes
 
 - **+600 personajes** en `packages/data/src/players.ts` (de 240 a ~840). Cobertura de
