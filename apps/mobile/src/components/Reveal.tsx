@@ -290,6 +290,24 @@ export function Reveal({ room }: { room: RoomView }) {
         </Animated.View>
       )}
 
+      {/* Abstenciones */}
+      {(data?.abstainedClientIds?.length ?? 0) > 0 && (
+        <Animated.View entering={FadeInDown.delay(950).duration(400)} className="mb-4">
+          <View className="px-3 py-2.5 rounded-xl border border-zinc-700/40 bg-zinc-700/5 gap-1.5">
+            <Text variant="label" className="text-zinc-500 text-xs">⚖️ Se abstuvieron</Text>
+            <View className="flex-row flex-wrap gap-1.5">
+              {(data?.abstainedClientIds ?? []).map((id) => (
+                <View key={id} className="px-2.5 py-0.5 rounded-full border border-zinc-600/40 bg-zinc-600/10">
+                  <Text variant="label" className="text-zinc-500 text-xs">
+                    {nameById.get(id) ?? '—'}{id === clientId ? ' (vos)' : ''}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </Animated.View>
+      )}
+
       {/* Ranking */}
       <Animated.View entering={FadeInDown.delay(1000)}>
         <View className="flex-row items-center gap-2 mb-3">
@@ -333,16 +351,27 @@ export function Reveal({ room }: { room: RoomView }) {
       {/* Acciones */}
       <Animated.View entering={FadeInDown.delay(1200)} className="mt-4 pb-6 gap-2">
         {isSessionOver ? (
-          /* Fin de sesión */
-          <View className="items-center gap-3">
+          <View className="items-center gap-4">
             <View className="px-4 py-2 rounded-full border border-gold-500/40 bg-gold-500/10">
               <Text variant="label" className="text-gold-400 tracking-widest">
                 🏁 SESIÓN TERMINADA · {maxRounds} PARTIDA{maxRounds > 1 ? 'S' : ''}
               </Text>
             </View>
-            <Text variant="muted" className="text-center text-sm">
-              ¡{ranking[0]?.name ?? '—'} gana la sesión con {ranking[0]?.score ?? 0} punto{ranking[0]?.score !== 1 ? 's' : ''}!
-            </Text>
+            {ranking[0] && (
+              <View className="items-center gap-1.5">
+                <Text className="text-5xl mb-1">🏆</Text>
+                <Text variant="display" className="text-gold-400 text-2xl text-center">{ranking[0].name}</Text>
+                <Text variant="muted">{ranking[0].score} punto{ranking[0].score !== 1 ? 's' : ''} · campeón de la sesión</Text>
+              </View>
+            )}
+            {ranking.slice(1, 3).map((p, i) => (
+              <View key={p.clientId} className="w-full flex-row items-center gap-3 px-3 py-2 rounded-xl border border-surface-border bg-surface-card">
+                <Text className="text-lg w-7 text-center">{MEDALS[i + 1]}</Text>
+                <PlayerAvatar name={p.name} color={p.color} seed={p.clientId} size={30} />
+                <Text variant="body" className="flex-1">{p.name}</Text>
+                <Text variant="title" className="text-zinc-400">{p.score}</Text>
+              </View>
+            ))}
             {isHost && (
               <Button
                 title="🔄 Nueva sesión"

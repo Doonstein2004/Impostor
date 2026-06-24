@@ -334,7 +334,9 @@ export const reveal = mutation({
       .withIndex('by_round', (q) => q.eq('roundId', round._id))
       .collect();
     const votes: Record<string, string> = {};
-    for (const row of voteRows) votes[row.voterClientId] = row.targetClientId;
+    for (const row of voteRows) {
+      if (row.voterClientId !== row.targetClientId) votes[row.voterClientId] = row.targetClientId;
+    }
     const tally = tallyVotes(votes);
 
     const impostors = new Set(round.impostorClientIds);
@@ -420,7 +422,7 @@ export const submitImpostorGuess = mutation({
       for (const vote of voteRows) {
         const voterIsImpostor = impostors.has(vote.voterClientId);
         const targetIsImpostor = impostors.has(vote.targetClientId);
-        if (!voterIsImpostor && !targetIsImpostor) {
+        if (!voterIsImpostor && !targetIsImpostor && vote.voterClientId !== vote.targetClientId) {
           scoreDeltas.set(vote.voterClientId, (scoreDeltas.get(vote.voterClientId) ?? 0) - 1);
         }
       }
@@ -551,8 +553,13 @@ export const getReveal = query({
       .withIndex('by_round', (q) => q.eq('roundId', roundId))
       .collect();
     const votersByTarget: Record<string, string[]> = {};
+    const abstainedClientIds: string[] = [];
     for (const r of voteRows) {
-      (votersByTarget[r.targetClientId] ??= []).push(r.voterClientId);
+      if (r.voterClientId === r.targetClientId) {
+        abstainedClientIds.push(r.voterClientId);
+      } else {
+        (votersByTarget[r.targetClientId] ??= []).push(r.voterClientId);
+      }
     }
 
     return {
@@ -563,7 +570,8 @@ export const getReveal = query({
       innocentsWin: round.innocentsWin ?? false,
       impostorWonGuess: round.impostorWonGuess ?? null,
       votersByTarget,
-      totalVotes: voteRows.length,
+      totalVotes: voteRows.length - abstainedClientIds.length,
+      abstainedClientIds,
     };
   },
 });

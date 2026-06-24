@@ -17,7 +17,8 @@
     "desktop:dev": "pnpm --filter @impostor/desktop dev",
     "desktop:build": "pnpm --filter @impostor/desktop build",
     "convex:dev": "pnpm --filter @impostor/backend dev",
-    "data:generate": "pnpm --filter @impostor/data generate"
+    "data:generate": "pnpm --filter @impostor/data generate",
+    "sync": "node scripts/sync-workspace.js"
   },
   "devDependencies": {
     "turbo": "^2.3.3",

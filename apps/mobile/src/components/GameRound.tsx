@@ -16,6 +16,7 @@ import Animated, {
   Easing,
   FadeIn,
   FadeInDown,
+  FadeInLeft,
   FadeInUp,
   ZoomIn,
   interpolateColor,
@@ -32,6 +33,7 @@ import { useChatInset } from '@/lib/useChatDock';
 import { runAction, toast } from '@/lib/useToast';
 import { useSounds } from '@/lib/useSounds';
 import { friendlyError } from '@/lib/errors';
+import { avatarHex } from '@/lib/avatars';
 import { CLUE_EMOJIS, POSITION_COLORS } from './types';
 import type { RoomView } from './types';
 
@@ -433,99 +435,108 @@ function PlayerRow({
   );
 }
 
-// ─── Clue card (persistent, with always-visible reactions) ────────────────
-// Una pista con su fila completa de reacciones, siempre visible. Reemplaza al
-// toast flotante: las pistas y sus reacciones se quedan en pantalla.
+// ─── Clue card (compact, color-accent left bar, animated entry) ──────────
 
-function ClueCard({ clue, myClientId, isLatest }: {
+function ClueCard({ clue, myClientId, playerColor, isLatest }: {
   clue: any;
   myClientId: string;
+  playerColor?: string | null;
   isLatest?: boolean;
 }) {
   const react = useMutation(api.clues.react);
   const myEmoji: string | undefined = clue.reactorEmojis?.[myClientId];
   const isMe = clue.clientId === myClientId;
+  const [showAll, setShowAll] = useState(false);
+
+  const accentColor = playerColor ?? (isMe ? '#d97706' : '#52525b');
+  const reactionCounts = (clue.reactionCounts as ReactionEntry[] | undefined) ?? [];
+  const activeEmojis = CLUE_EMOJIS.filter(
+    (e) => myEmoji === e || (reactionCounts.find((r) => r.emoji === e)?.count ?? 0) > 0,
+  );
+  const visibleEmojis = showAll ? CLUE_EMOJIS : activeEmojis;
+  const hasHidden = !showAll && activeEmojis.length < CLUE_EMOJIS.length;
 
   return (
     <Animated.View
-      entering={FadeInDown.springify().damping(16)}
+      entering={FadeInLeft.springify().damping(18).stiffness(120)}
       style={{
-        borderRadius: 18,
-        borderWidth: 1.5,
-        borderColor: isMe ? 'rgba(245,158,11,0.5)' : isLatest ? '#52525b' : '#27272a',
-        backgroundColor: isMe ? 'rgba(245,158,11,0.06)' : '#18181b',
+        flexDirection: 'row',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: isLatest ? '#3f3f46' : '#27272a',
+        backgroundColor: '#18181b',
         overflow: 'hidden',
       }}
     >
-      {/* Header — autor */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 10 }}>
-        <View
-          style={{
-            height: 26, width: 26, borderRadius: 13,
-            alignItems: 'center', justifyContent: 'center',
-            backgroundColor: isMe ? 'rgba(245,158,11,0.2)' : '#27272a',
-            borderWidth: 1, borderColor: isMe ? 'rgba(245,158,11,0.4)' : '#3f3f46',
-          }}
-        >
-          <Text style={{ fontSize: 11, fontWeight: '700', color: isMe ? '#fbbf24' : '#d4d4d8' }}>
-            {(clue.playerName ?? '?').charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <Text style={{ fontSize: 11, letterSpacing: 1.5, fontWeight: '700', color: isMe ? '#d97706' : '#71717a' }}>
-          {(clue.playerName ?? '?').toUpperCase()}{isMe ? ' · VOS' : ''}
-        </Text>
-        {isLatest && (
-          <View style={{ marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)' }}>
-            <Text style={{ fontSize: 8, letterSpacing: 1.5, fontWeight: '700', color: '#d97706' }}>NUEVA</Text>
-          </View>
-        )}
-      </View>
+      {/* Left accent bar — color único del jugador */}
+      <View style={{ width: 4, backgroundColor: accentColor, opacity: isMe ? 1 : 0.55 }} />
 
-      {/* Texto de la pista — línea propia, con aire */}
-      <View style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
-        <Text
-          style={{
-            fontSize: 20, fontWeight: '700', letterSpacing: 0.3, lineHeight: 25,
-            color: isMe ? '#fde68a' : '#ffffff',
-          }}
-        >
+      {/* Content */}
+      <View style={{ flex: 1, paddingHorizontal: 11, paddingTop: 8, paddingBottom: 9, gap: 4 }}>
+        {/* Author */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 10, letterSpacing: 1.5, fontWeight: '700', color: isMe ? '#d97706' : '#71717a' }}>
+            {(clue.playerName ?? '?').toUpperCase()}{isMe ? ' · VOS' : ''}
+          </Text>
+          {isLatest && (
+            <View style={{
+              marginLeft: 'auto',
+              paddingHorizontal: 6, paddingVertical: 1,
+              borderRadius: 999,
+              backgroundColor: 'rgba(245,158,11,0.12)',
+              borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
+            }}>
+              <Text style={{ fontSize: 8, letterSpacing: 1.5, fontWeight: '700', color: '#d97706' }}>NUEVA</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Clue text */}
+        <Text style={{ fontSize: 18, fontWeight: '700', letterSpacing: 0.2, lineHeight: 23, color: isMe ? '#fde68a' : '#f4f4f5' }}>
           {clue.text}
         </Text>
-      </View>
 
-      {/* Fila de reacciones — siempre visible y persistente */}
-      <View style={{ borderTopWidth: 1, borderTopColor: '#27272a', paddingHorizontal: 10, paddingVertical: 8 }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ flexDirection: 'row', gap: 6 }}
-        >
-          {CLUE_EMOJIS.map((emoji) => {
-            const count = (clue.reactionCounts as ReactionEntry[] | undefined)
-              ?.find((r) => r.emoji === emoji)?.count ?? 0;
+        {/* Reactions — solo las activas + botón para ver todas */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 1 }}>
+          {visibleEmojis.map((emoji) => {
+            const count = reactionCounts.find((r) => r.emoji === emoji)?.count ?? 0;
             const active = myEmoji === emoji;
             return (
               <Pressable
                 key={emoji}
                 onPress={() => react({ clueId: clue._id, reactorClientId: myClientId, emoji })}
                 style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 5,
-                  borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6,
+                  flexDirection: 'row', alignItems: 'center', gap: 3,
+                  borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3,
                   borderWidth: active ? 1.5 : 1,
-                  borderColor: active ? '#f59e0b' : '#3f3f46',
-                  backgroundColor: active ? 'rgba(245,158,11,0.22)' : 'rgba(39,39,42,0.6)',
+                  borderColor: active ? accentColor : '#3f3f46',
+                  backgroundColor: active ? `${accentColor}30` : 'transparent',
                 }}
               >
-                <Text style={{ fontSize: 17 }}>{emoji}</Text>
+                <Text style={{ fontSize: 12 }}>{emoji}</Text>
                 {count > 0 && (
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fbbf24' : '#d4d4d8' }}>
-                    {count}
-                  </Text>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: active ? '#fbbf24' : '#a1a1aa' }}>{count}</Text>
                 )}
               </Pressable>
             );
           })}
-        </ScrollView>
+          {hasHidden && (
+            <Pressable
+              onPress={() => setShowAll(true)}
+              style={{ borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#3f3f46' }}
+            >
+              <Text style={{ fontSize: 11, color: '#71717a' }}>+</Text>
+            </Pressable>
+          )}
+          {showAll && (
+            <Pressable
+              onPress={() => setShowAll(false)}
+              style={{ borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#3f3f46' }}
+            >
+              <Text style={{ fontSize: 11, color: '#71717a' }}>−</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
     </Animated.View>
   );
@@ -535,12 +546,14 @@ function ClueCard({ clue, myClientId, isLatest }: {
 // Muestra TODAS las pistas de la ronda, agrupadas por vuelta, para tenerlas
 // siempre presentes durante la discusión.
 
-function CluesFeed({ clues, myClientId, currentTurn }: {
+function CluesFeed({ clues, myClientId, currentTurn, players }: {
   clues: any[];
   myClientId: string;
   currentTurn: number;
+  players: RoomView['players'];
 }) {
   if (!clues.length) return null;
+  const colorMap = new Map(players.map((p) => [p.clientId, avatarHex(p.color, p.clientId)]));
   // Más recientes primero: vueltas desc y, dentro de cada vuelta, pistas desc.
   const turns = [...new Set(clues.map((c) => c.turn as number))].sort((a, b) => b - a);
   // Con una sola vuelta el header "VUELTA n" es redundante (ya hay título arriba).
@@ -571,6 +584,7 @@ function CluesFeed({ clues, myClientId, currentTurn }: {
                   key={clue._id}
                   clue={clue}
                   myClientId={myClientId}
+                  playerColor={colorMap.get(clue.clientId) ?? null}
                   isLatest={isCurrent && i === 0}
                 />
               ))}
@@ -809,7 +823,7 @@ export function GameRound({ room }: { room: RoomView }) {
               </Text>
               <Text variant="label" className="text-zinc-700 text-xs">{clues.length}</Text>
             </View>
-            <CluesFeed clues={clues} myClientId={clientId} currentTurn={currentTurn} />
+            <CluesFeed clues={clues} myClientId={clientId} currentTurn={currentTurn} players={room.players} />
           </Animated.View>
         )}
 
@@ -852,7 +866,7 @@ export function GameRound({ room }: { room: RoomView }) {
         </Text>
         <Text variant="label" className="text-zinc-700 text-xs">{clues.length}</Text>
       </View>
-      <CluesFeed clues={clues} myClientId={clientId} currentTurn={currentTurn} />
+      <CluesFeed clues={clues} myClientId={clientId} currentTurn={currentTurn} players={room.players} />
     </View>
   ) : null;
 

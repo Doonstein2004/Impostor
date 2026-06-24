@@ -28,6 +28,7 @@ export function Voting({ room }: { room: RoomView }) {
   const round = useQuery(api.game.getRound, roundId ? { roundId } : 'skip');
 
   const iVoted = voteState?.votedClientIds.includes(clientId) ?? false;
+  const hasAbstained = (voteState?.votesByVoter?.[clientId] ?? null) === clientId;
   const total = voteState?.total ?? 0;
   const allVoted = total >= room.players.length;
 
@@ -165,12 +166,39 @@ export function Voting({ room }: { room: RoomView }) {
       </View>
 
       {/* Estado del propio voto */}
-      {iVoted && (
+      {iVoted && !hasAbstained && (
         <Animated.View entering={FadeInDown.delay(300)} className="mt-4">
           <Card className="items-center gap-1 border-pitch-500/30 bg-pitch-500/5">
             <Text className="text-xl">✅</Text>
-            <Text variant="muted" className="text-center text-xs">Voto registrado. Podés cambiar hasta que el host revele.</Text>
+            <Text variant="muted" className="text-center text-xs">Voto registrado. Podés cambiar hasta que se revele.</Text>
           </Card>
+        </Animated.View>
+      )}
+
+      {hasAbstained && (
+        <Animated.View entering={FadeInDown.delay(300)} className="mt-4">
+          <Card className="items-center gap-1 border-zinc-600/30 bg-zinc-600/5">
+            <Text className="text-xl">⚖️</Text>
+            <Text variant="muted" className="text-center text-xs">Te abstuviste. Tocá un jugador para votar de todas formas.</Text>
+          </Card>
+        </Animated.View>
+      )}
+
+      {!iVoted && (
+        <Animated.View entering={FadeInDown.delay(350)} className="mt-3">
+          <Pressable
+            disabled={!roundId}
+            onPress={() => {
+              roundId && runAction(
+                () => castVote({ roundId, voterClientId: clientId, targetClientId: clientId }),
+                'No se pudo registrar la abstención.',
+              );
+            }}
+            className="flex-row items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-zinc-600"
+          >
+            <Text className="text-base">⚖️</Text>
+            <Text variant="label" className="text-zinc-600 text-sm">Abstenerme</Text>
+          </Pressable>
         </Animated.View>
       )}
 
