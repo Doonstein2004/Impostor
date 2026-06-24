@@ -80,6 +80,8 @@ const MAX_CLUE_ROUNDS_OPTIONS = [
   { value: 5, label: '5' }, { value: 0, label: '♾️' },
 ] as const;
 
+const MAX_PLAYERS_OPTIONS = [4, 5, 6, 8, 10] as const;
+
 type ConfigTab = 'partida' | 'pool' | 'reglas';
 const TABS: { key: ConfigTab; label: string }[] = [
   { key: 'partida', label: '🃏 Partida' },
@@ -159,6 +161,7 @@ function ConfigTabs({
   const maxClueRounds = config.maxClueRounds ?? 3;
   const voteSeconds = config.voteSeconds ?? 60;
   const commMode = config.commMode ?? 'texto';
+  const maxPlayers = config.maxPlayers ?? 10;
 
   const [secondsDraft, setSecondsDraft] = useState(
     config.turnSeconds > 0 ? String(config.turnSeconds) : '',
@@ -277,6 +280,27 @@ function ConfigTabs({
                     >
                       <Text className={`text-sm font-display ${active ? 'text-pitch-400' : 'text-zinc-500'}`}>
                         {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View className="gap-2">
+              <Text variant="label" className="text-zinc-500 text-xs">👥 Límite de jugadores</Text>
+              <View className="flex-row gap-1.5">
+                {MAX_PLAYERS_OPTIONS.map((n) => {
+                  const active = maxPlayers === n;
+                  return (
+                    <Pressable
+                      key={n}
+                      onPress={() => onPatch({ maxPlayers: n })}
+                      className={`flex-1 items-center py-2 rounded-xl border
+                        ${active ? 'border-gold-500/40 bg-gold-500/15' : 'border-surface-border bg-surface-soft'}`}
+                    >
+                      <Text className={`text-sm font-display ${active ? 'text-gold-400' : 'text-zinc-500'}`}>
+                        {n}
                       </Text>
                     </Pressable>
                   );
@@ -550,8 +574,12 @@ export function Lobby({ room }: { room: RoomView }) {
   const { clientId, setLeaving, avatarColor, setAvatarColor, configPresets, savePreset, deletePreset } = useSession();
   const [presetName, setPresetName] = useState('');
   const [namingPreset, setNamingPreset] = useState(false);
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [passwordDraft, setPasswordDraft] = useState('');
+  const [historyExpanded, setHistoryExpanded] = useState(false);
   const isHost = room.hostClientId === clientId;
   const updateConfig = useMutation(api.rooms.updateConfig);
+  const updatePasswordMutation = useMutation(api.rooms.updatePassword);
   const startRound = useMutation(api.game.startRound);
   const leave = useMutation(api.rooms.leave);
   const kickPlayer = useMutation(api.rooms.kick);
@@ -679,6 +707,20 @@ export function Lobby({ room }: { room: RoomView }) {
     router.replace('/');
   }
 
+  async function handleSetPassword(pw: string) {
+    setShowPasswordInput(false);
+    await runAction(
+      () => updatePasswordMutation({ roomId: room._id, clientId, password: pw }),
+      'No se pudo cambiar la contraseña.',
+    );
+    setPasswordDraft('');
+  }
+
+  const usedCharacters = useMemo(
+    () => CHARACTERS.filter((c) => room.usedCharacterIds.includes(c.id)).reverse(),
+    [room.usedCharacterIds],
+  );
+
   return (
     <Screen scroll>
       {/* Hero */}
@@ -724,6 +766,63 @@ export function Lobby({ room }: { room: RoomView }) {
             <Button title="🔗 Copiar enlace" variant="secondary" onPress={copyLink} className="flex-1" />
             <Button title="📤 Compartir" variant="secondary" onPress={shareLink} className="flex-1" />
           </View>
+
+          {/* Contraseña */}
+          {isHost ? (
+            <View className="w-full mt-1 gap-1.5">
+              {showPasswordInput ? (
+                <View className="flex-row items-center gap-2">
+                  <TextInput
+                    value={passwordDraft}
+                    onChangeText={setPasswordDraft}
+                    placeholder="Contraseña"
+                    placeholderTextColor="#52525b"
+                    secureTextEntry
+                    maxLength={30}
+                    autoFocus
+                    className="flex-1 h-9 rounded-xl border border-gold-500/40 bg-surface-soft px-3 text-white text-sm"
+                  />
+                  <Pressable
+                    onPress={() => handleSetPassword(passwordDraft)}
+                    className="px-3 py-2 rounded-xl border border-pitch-500/50 bg-pitch-500/10"
+                  >
+                    <Text className="text-pitch-400 text-xs font-display">Guardar</Text>
+                  </Pressable>
+                  <Pressable onPress={() => { setShowPasswordInput(false); setPasswordDraft(''); }} className="px-2 py-2">
+                    <Text className="text-zinc-500 text-xs">✕</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View className="flex-row items-center gap-2">
+                  <View className="flex-1 flex-row items-center gap-1.5">
+                    <Text style={{ fontSize: 12 }}>{room.hasPassword ? '🔒' : '🔓'}</Text>
+                    <Text variant="label" className={`text-xs ${room.hasPassword ? 'text-gold-400' : 'text-zinc-600'}`}>
+                      {room.hasPassword ? 'Con contraseña' : 'Sala pública'}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setShowPasswordInput(true)}
+                    className="px-2.5 py-1 rounded-full border border-surface-border bg-surface-soft"
+                  >
+                    <Text className="text-zinc-400 text-xs">{room.hasPassword ? 'Cambiar' : '+ Agregar'}</Text>
+                  </Pressable>
+                  {room.hasPassword && (
+                    <Pressable
+                      onPress={() => handleSetPassword('')}
+                      className="px-2.5 py-1 rounded-full border border-surface-border bg-surface-soft"
+                    >
+                      <Text className="text-zinc-400 text-xs">Quitar</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </View>
+          ) : room.hasPassword ? (
+            <View className="flex-row items-center gap-1 mt-1">
+              <Text style={{ fontSize: 12 }}>🔒</Text>
+              <Text variant="label" className="text-zinc-500 text-xs">Sala privada</Text>
+            </View>
+          ) : null}
         </Card>
       </Animated.View>
 
@@ -733,7 +832,7 @@ export function Lobby({ room }: { room: RoomView }) {
           <Text variant="title">🏟️ En la cancha</Text>
           <View className={`px-2 py-0.5 rounded-full ${room.players.length >= 3 ? 'bg-pitch-500/20' : 'bg-yellow-500/20'}`}>
             <Text variant="label" className={room.players.length >= 3 ? 'text-pitch-400' : 'text-yellow-400'}>
-              {room.players.length}/10
+              {room.players.length}/{config.maxPlayers ?? 10}
             </Text>
           </View>
         </View>
@@ -799,6 +898,36 @@ export function Lobby({ room }: { room: RoomView }) {
           )}
         </Card>
       </Animated.View>
+
+      {/* Historial de personajes de la sesión — visible a todos */}
+      {usedCharacters.length > 0 && (
+        <Animated.View entering={FadeInDown.delay(150).duration(400)}>
+          <Card className="mb-4 gap-2">
+            <Pressable
+              onPress={() => setHistoryExpanded(!historyExpanded)}
+              className="flex-row items-center justify-between"
+            >
+              <Text variant="label" className="text-zinc-400 text-xs">
+                📋 Jugados esta sesión ({usedCharacters.length})
+              </Text>
+              <Text className="text-zinc-500 text-sm">{historyExpanded ? '▴' : '▾'}</Text>
+            </Pressable>
+            {historyExpanded && (
+              <Animated.View entering={FadeIn.duration(200)} className="flex-row flex-wrap gap-1.5 pt-0.5">
+                {usedCharacters.map((c) => (
+                  <View
+                    key={c.id}
+                    className="flex-row items-center gap-1 rounded-full border border-surface-border bg-surface-soft px-2.5 py-1"
+                  >
+                    <Text style={{ fontSize: 11 }}>{ZONE_EMOJIS[c.zone]}</Text>
+                    <Text className="text-zinc-300 text-xs">{c.name}</Text>
+                  </View>
+                ))}
+              </Animated.View>
+            )}
+          </Card>
+        </Animated.View>
+      )}
 
       {/* Tu color — compacto, sin Card */}
       <Animated.View entering={FadeInDown.delay(160).duration(400)}>

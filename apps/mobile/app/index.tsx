@@ -17,6 +17,8 @@ export default function Home() {
 
   const { code: codeParam } = useLocalSearchParams<{ code?: string }>();
   const [code, setCode] = useState('');
+  const [roomPassword, setRoomPassword] = useState('');
+  const [needsPassword, setNeedsPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [spectatorCode, setSpectatorCode] = useState<string | null>(null);
@@ -52,13 +54,15 @@ export default function Home() {
     if (code.trim().length < 4) { setError('El código tiene que tener al menos 4 caracteres. Revisalo.'); return; }
     setBusy(true);
     try {
-      const res = await joinRoom({ code: code.trim().toUpperCase(), clientId, name: name.trim(), color: avatarColor });
+      const res = await joinRoom({ code: code.trim().toUpperCase(), clientId, name: name.trim(), color: avatarColor, password: roomPassword || undefined });
       router.push(`/room/${res.code}`);
     } catch (e) {
       const msg = String(e);
       if (msg.includes('partida ya empezó')) {
-        // Ofrecer modo espectador en lugar del error
         setSpectatorCode(code.trim().toUpperCase());
+      } else if (msg.includes('contraseña')) {
+        setNeedsPassword(true);
+        setError(friendlyError(e, 'Esta sala requiere contraseña.'));
       } else {
         setError(friendlyError(e, 'No se pudo unir a la sala. Probá de nuevo.'));
       }
@@ -72,7 +76,7 @@ export default function Home() {
     if (needName) { setError('Ingresá tu nombre para ver la partida.'); return; }
     setBusy(true);
     try {
-      const res = await joinAsSpectator({ code: spectatorCode, clientId, name: name.trim(), color: avatarColor });
+      const res = await joinAsSpectator({ code: spectatorCode, clientId, name: name.trim(), color: avatarColor, password: roomPassword || undefined });
       router.push(`/room/${res.code}`);
     } catch (e) {
       setError(friendlyError(e, 'No se pudo entrar como espectador.'));
@@ -207,13 +211,26 @@ export default function Home() {
         <Text variant="label">Código de sala</Text>
         <TextInput
           value={code}
-          onChangeText={(t) => setCode(t.toUpperCase())}
+          onChangeText={(t) => { setCode(t.toUpperCase()); setNeedsPassword(false); setRoomPassword(''); }}
           placeholder="ABC123"
           placeholderTextColor="#52525b"
           autoCapitalize="characters"
           maxLength={6}
           className="h-12 rounded-2xl border border-surface-border bg-surface-soft px-4 text-center text-2xl tracking-[8px] text-white"
         />
+        {needsPassword && (
+          <View className="gap-1">
+            <Text variant="label" className="text-zinc-500 text-xs">🔒 Contraseña de la sala</Text>
+            <TextInput
+              value={roomPassword}
+              onChangeText={setRoomPassword}
+              placeholder="Ingresá la contraseña"
+              placeholderTextColor="#52525b"
+              secureTextEntry
+              className="h-12 rounded-2xl border border-gold-500/40 bg-surface-soft px-4 text-white"
+            />
+          </View>
+        )}
         <Button title="Unirme" variant="secondary" onPress={handleJoin} loading={busy} className="mt-2" />
       </Card>
 

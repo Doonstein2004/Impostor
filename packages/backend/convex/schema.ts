@@ -35,6 +35,8 @@ export const gameConfigValidator = v.object({
   commMode: v.optional(v.union(v.literal('texto'), v.literal('audio'))),
   /** Penaliza con -1 punto a quien vota por un inocente cuando los inocentes ganan. */
   penaltyWrongVote: v.optional(v.boolean()),
+  /** Máximo de jugadores (no espectadores) permitidos en la sala. 0 o ausente = sin límite. */
+  maxPlayers: v.optional(v.number()),
 });
 
 export const roomStatusValidator = v.union(
@@ -56,6 +58,8 @@ export default defineSchema({
     roundNumber: v.optional(v.number()),
     /** IDs de personajes ya usados en esta sesión (para no repetir). */
     usedCharacterIds: v.optional(v.array(v.string())),
+    /** Contraseña de la sala. Vacío/ausente = sala pública. */
+    password: v.optional(v.string()),
     createdAt: v.number(),
   }).index('by_code', ['code']),
 

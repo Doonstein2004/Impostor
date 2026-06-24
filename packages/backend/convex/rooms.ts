@@ -17,8 +17,8 @@ function validateName(name: string) {
 
 /** Crea una sala nueva y agrega al host como primer jugador. */
 export const create = mutation({
-  args: { clientId: v.string(), name: v.string(), color: v.optional(v.string()) },
-  handler: async (ctx, { clientId, name, color }) => {
+  args: { clientId: v.string(), name: v.string(), color: v.optional(v.string()), password: v.optional(v.string()) },
+  handler: async (ctx, { clientId, name, color, password }) => {
     const validName = validateName(name);
     // Genera un código único (reintenta ante colisión, muy improbable).
     let code = generateRoomCode();
@@ -36,6 +36,7 @@ export const create = mutation({
       hostClientId: clientId,
       status: 'lobby',
       config: DEFAULT_CONFIG,
+      ...(password?.trim() ? { password: password.trim() } : {}),
       createdAt: Date.now(),
     });
 
@@ -56,8 +57,8 @@ export const create = mutation({
 
 /** Une a un jugador a una sala por código. Idempotente por clientId. */
 export const join = mutation({
-  args: { code: v.string(), clientId: v.string(), name: v.string(), color: v.optional(v.string()) },
-  handler: async (ctx, { code, clientId, name, color }) => {
+  args: { code: v.string(), clientId: v.string(), name: v.string(), color: v.optional(v.string()), password: v.optional(v.string()) },
+  handler: async (ctx, { code, clientId, name, color, password }) => {
     const validName = validateName(name);
 
     const room = await ctx.db
@@ -77,6 +78,20 @@ export const join = mutation({
       return { roomId: room._id, code: room.code };
     }
 
+    // Validaciones para nuevos jugadores
+    if (room.password && password?.trim() !== room.password) {
+      throw new Error('Esta sala requiere contraseña');
+    }
+    const maxPlayers = (room.config.maxPlayers ?? 10) || 10;
+    const allPlayers = await ctx.db
+      .query('players')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+    const nonSpectators = allPlayers.filter((p) => !p.isSpectator);
+    if (nonSpectators.length >= maxPlayers) {
+      throw new Error(`La sala está llena (máx. ${maxPlayers} jugadores)`);
+    }
+
     await ctx.db.insert('players', {
       roomId: room._id,
       clientId,
@@ -93,8 +108,8 @@ export const join = mutation({
 
 /** Une a alguien como espectador. Funciona en cualquier estado de la sala. */
 export const joinAsSpectator = mutation({
-  args: { code: v.string(), clientId: v.string(), name: v.string(), color: v.optional(v.string()) },
-  handler: async (ctx, { code, clientId, name, color }) => {
+  args: { code: v.string(), clientId: v.string(), name: v.string(), color: v.optional(v.string()), password: v.optional(v.string()) },
+  handler: async (ctx, { code, clientId, name, color, password }) => {
     const validName = validateName(name);
 
     const room = await ctx.db
@@ -111,6 +126,11 @@ export const joinAsSpectator = mutation({
     if (existing) {
       await ctx.db.patch(existing._id, { connected: true, name: validName, ...(color ? { color } : {}) });
       return { roomId: room._id, code: room.code, isSpectator: existing.isSpectator ?? false };
+    }
+
+    // Validaciones para nuevos espectadores
+    if (room.password && password?.trim() !== room.password) {
+      throw new Error('Esta sala requiere contraseña');
     }
 
     // Límite de espectadores para evitar flooding
@@ -267,6 +287,7 @@ export const get = query({
       hostClientId: room.hostClientId,
       config: { ...room.config, maxRounds: room.config.maxRounds ?? 3 },
       usedCharacterIds: room.usedCharacterIds ?? [],
+      hasPassword: !!room.password,
       currentRoundId: room.currentRoundId ?? null,
       roundNumber: room.roundNumber ?? 0,
       players: players
@@ -282,6 +303,19 @@ export const get = query({
           score: p.score,
         })),
     };
+  },
+});
+
+/** El host establece o borra la contraseña de la sala (solo en lobby). */
+export const updatePassword = mutation({
+  args: { roomId: v.id('rooms'), clientId: v.string(), password: v.optional(v.string()) },
+  handler: async (ctx, { roomId, clientId, password }) => {
+    const room = await ctx.db.get(roomId);
+    if (!room) throw new Error('Sala no encontrada');
+    if (room.hostClientId !== clientId) throw new Error('Solo el host puede cambiar la contraseña');
+    if (room.status !== 'lobby') throw new Error('No se puede cambiar en partida');
+    const trimmed = password?.trim() ?? '';
+    await ctx.db.patch(roomId, { password: trimmed || '' });
   },
 });
 

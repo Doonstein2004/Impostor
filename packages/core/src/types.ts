@@ -52,6 +52,8 @@ export interface GameConfig {
   commMode?: 'texto' | 'audio';
   /** Si es true, los jugadores que votan a un inocente pierden 1 punto cuando los inocentes ganan. */
   penaltyWrongVote?: boolean;
+  /** Máximo de jugadores permitidos (sin contar espectadores). 0 o ausente = sin límite (máx. 10). */
+  maxPlayers?: number;
 }
 
 export const DEFAULT_CONFIG: GameConfig = {
@@ -67,6 +69,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   voteSeconds: 60,
   commMode: 'texto',
   penaltyWrongVote: false,
+  maxPlayers: 10,
 };
 
 /** Un modo de juego predefinido con config y descripción para el lobby. */

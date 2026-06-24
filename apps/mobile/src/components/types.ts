@@ -10,6 +10,7 @@ export interface RoomView {
   currentRoundId: Id<'rounds'> | null;
   roundNumber: number;
   usedCharacterIds: string[];
+  hasPassword: boolean;
   players: {
     clientId: string;
     name: string;
