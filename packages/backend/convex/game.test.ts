@@ -1,0 +1,127 @@
+import { convexTest } from 'convex-test';
+import { describe, expect, it } from 'vitest';
+import schema from './schema';
+import { api } from './_generated/api';
+
+const modules = import.meta.glob('./**/*.ts');
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+const BASE_CONFIG = {
+  zones: [] as string[],
+  eras: [] as string[],
+  roles: ['jugador', 'dt'] as string[],
+  clubs: [] as string[],
+  impostorCount: 1,
+  impostorHint: 'nada' as const,
+  turnSeconds: 0,
+  maxRounds: 1,
+  maxClueRounds: 1,
+  voteSeconds: 0,
+  commMode: 'texto' as const,
+  penaltyWrongVote: false,
+  maxPlayers: 10,
+};
+
+/** Crea sala con 3 jugadores y arranca una ronda. Devuelve { code, roomId, roundId, players }. */
+async function setupGame(t: ReturnType<typeof convexTest>) {
+  const { code, roomId } = await t.mutation(api.rooms.create, {
+    clientId: 'host',
+    name: 'Host',
+  });
+
+  await t.mutation(api.rooms.join, { code, clientId: 'p2', name: 'P2' });
+  await t.mutation(api.rooms.join, { code, clientId: 'p3', name: 'P3' });
+
+  await t.mutation(api.rooms.updateConfig, {
+    roomId,
+    clientId: 'host',
+    config: BASE_CONFIG,
+  });
+
+  await t.mutation(api.game.startRound, { roomId, clientId: 'host' });
+
+  const room = await t.query(api.rooms.get, { code });
+  const roundId = room!.currentRoundId!;
+  const players = room!.players;
+
+  return { code, roomId, roundId, players };
+}
+
+/** Avanza la fase de pistas y abre la votación. */
+async function openVoting(
+  t: ReturnType<typeof convexTest>,
+  roomId: ReturnType<typeof convexTest>['mutation'] extends (...args: any) => Promise<infer R> ? R : never,
+  _roomId: any,
+) { /* reemplazado abajo por versión simple */ }
+
+// ─── abstención en votación ──────────────────────────────────────────────────
+
+describe('game.reveal — abstención (self-vote)', () => {
+  it('la abstención no cuenta en el tally y no elige expulsado', async () => {
+    const t = convexTest(schema, modules);
+    const { roomId, roundId, players } = await setupGame(t);
+
+    // Dar una pista rápida para poder votar (el backend requiere al menos 1 vuelta).
+    const round = await t.query(api.game.getRound, { roundId });
+    if (round?.currentSpeakerClientId) {
+      // Cada jugador da su pista.
+      for (const p of players.filter((p) => !p.isSpectator)) {
+        await t.mutation(api.game.submitClueAndAdvance, {
+          roundId,
+          clientId: p.clientId,
+          text: 'pista de prueba',
+        }).catch(() => { /* puede fallar si no es su turno */ });
+      }
+    }
+
+    await t.mutation(api.game.startVoting, { roomId, clientId: 'host' });
+
+    // Todos se abstienen (votan a sí mismos).
+    for (const p of players.filter((pl) => !pl.isSpectator)) {
+      await t.mutation(api.votes.cast, {
+        roundId,
+        voterClientId: p.clientId,
+        targetClientId: p.clientId,
+      });
+    }
+
+    // Revelar — con todos absteniéndose no hay expulsado.
+    await t.mutation(api.game.reveal, { roomId, clientId: 'host' });
+
+    const data = await t.query(api.game.getReveal, { roundId });
+    expect(data).not.toBeNull();
+    // Sin votos reales, no hay expulsado (tie vacío → ejectedClientId null).
+    expect(data!.ejectedClientId).toBeNull();
+    // Las abstenciones deben estar en abstainedClientIds.
+    expect(data!.abstainedClientIds).toHaveLength(players.filter((p) => !p.isSpectator).length);
+    // totalVotes excluye abstenciones.
+    expect(data!.totalVotes).toBe(0);
+  });
+
+  it('getReveal separa votos reales de abstenciones correctamente', async () => {
+    const t = convexTest(schema, modules);
+    const { roomId, roundId, players } = await setupGame(t);
+
+    await t.mutation(api.game.startVoting, { roomId, clientId: 'host' });
+
+    // p2 abstiene, host y p3 votan a p2.
+    await t.mutation(api.votes.cast, {
+      roundId, voterClientId: 'p2', targetClientId: 'p2',
+    });
+    await t.mutation(api.votes.cast, {
+      roundId, voterClientId: 'host', targetClientId: 'p2',
+    });
+    await t.mutation(api.votes.cast, {
+      roundId, voterClientId: 'p3', targetClientId: 'p2',
+    });
+
+    await t.mutation(api.game.reveal, { roomId, clientId: 'host' });
+    const data = await t.query(api.game.getReveal, { roundId });
+
+    expect(data!.abstainedClientIds).toEqual(['p2']);
+    expect(data!.totalVotes).toBe(2); // host + p3 (no p2)
+    expect(data!.votersByTarget['p2']).toEqual(expect.arrayContaining(['host', 'p3']));
+    expect(data!.votersByTarget['p2']).not.toContain('p2');
+  });
+});
