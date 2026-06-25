@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import schema from './schema';
 import { api } from './_generated/api';
 
+/// <reference types="vite/client" />
 // Fuente de funciones para convex-test (todas las funciones del directorio).
 const modules = import.meta.glob('./**/*.ts');
 
@@ -38,9 +39,9 @@ async function createRoom(
 }
 
 const defaultConfig = {
-  zones: [] as string[],
-  eras: [] as string[],
-  roles: ['jugador', 'dt'] as string[],
+  zones: [] as ('portero' | 'defensor' | 'medio' | 'atacante')[],
+  eras: [] as ('antiguo' | 'leyenda' | 'moderno' | 'experimentado' | 'actual' | 'joven_promesa')[],
+  roles: ['jugador', 'dt'] as ('jugador' | 'dt')[],
   clubs: [] as string[],
   impostorCount: 1,
   impostorHint: 'nada' as const,

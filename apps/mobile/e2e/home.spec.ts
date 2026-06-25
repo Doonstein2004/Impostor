@@ -7,9 +7,9 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('Home screen', () => {
   test.beforeEach(async ({ page }) => {
+    // El primer goto puede tardar mientras Metro compila; el timeout del test (60s) cubre esto.
     await page.goto('/');
-    // Esperar a que la app esté lista (el título principal debe verse).
-    await expect(page.getByText('IMPOSTOR')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('IMPOSTOR')).toBeVisible({ timeout: 50_000 });
   });
 
   test('muestra el título y los controles principales', async ({ page }) => {

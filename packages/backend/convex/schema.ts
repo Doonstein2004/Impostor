@@ -151,6 +151,51 @@ export default defineSchema({
     createdAt: v.number(),
   }).index('by_room', ['roomId']),
 
+  /** Reacciones efímeras en tiempo real durante la partida (se auto-eliminan a los 5s). */
+  liveReactions: defineTable({
+    roomId: v.id('rooms'),
+    clientId: v.string(),
+    playerName: v.string(),
+    emoji: v.string(),
+    sentAt: v.number(),
+  }).index('by_room', ['roomId']),
+
+  /**
+   * Torneos: bracket de N equipos con matches enlazados a rooms.
+   * format: elimination (cuartos/semis/final) | round_robin (todos vs todos).
+   */
+  tournaments: defineTable({
+    code: v.string(),
+    name: v.string(),
+    hostClientId: v.string(),
+    status: v.union(v.literal('setup'), v.literal('active'), v.literal('finished')),
+    format: v.union(v.literal('elimination'), v.literal('round_robin')),
+    teams: v.array(v.object({
+      id: v.string(),
+      name: v.string(),
+      color: v.string(),
+    })),
+    playerTeams: v.array(v.object({
+      clientId: v.string(),
+      playerName: v.string(),
+      teamId: v.string(),
+    })),
+    bracket: v.array(v.object({
+      matchId: v.string(),
+      round: v.number(),
+      matchNumber: v.number(),
+      team1Id: v.optional(v.string()),
+      team2Id: v.optional(v.string()),
+      winnerId: v.optional(v.string()),
+      roomCode: v.optional(v.string()),
+      team1Score: v.optional(v.number()),
+      team2Score: v.optional(v.number()),
+      status: v.union(v.literal('pending'), v.literal('playing'), v.literal('finished'), v.literal('bye')),
+    })),
+    config: gameConfigValidator,
+    createdAt: v.number(),
+  }).index('by_code', ['code']),
+
   /** Estadísticas acumuladas por jugador (clientId persistente en el dispositivo). */
   stats: defineTable({
     clientId: v.string(),

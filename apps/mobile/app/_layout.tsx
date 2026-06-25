@@ -46,6 +46,8 @@ export default function RootLayout() {
             <Stack.Screen name="room/[code]" options={{ headerShown: false }} />
             <Stack.Screen name="stats" options={{ title: 'Mis estadísticas', headerBackTitle: 'Volver' }} />
             <Stack.Screen name="leaderboard" options={{ title: 'Ranking', headerBackTitle: 'Volver' }} />
+            <Stack.Screen name="tournament/create" options={{ title: 'Crear torneo', headerBackTitle: 'Volver' }} />
+            <Stack.Screen name="tournament/[code]" options={{ title: 'Bracket', headerBackTitle: 'Volver' }} />
           </Stack>
           {/* Toast global por encima de todo */}
           <Toast />

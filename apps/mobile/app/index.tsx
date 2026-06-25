@@ -234,7 +234,7 @@ export default function Home() {
         <Button title="Unirme" variant="secondary" onPress={handleJoin} loading={busy} className="mt-2" />
       </Card>
 
-      <View className="mt-6 mb-4 flex-row justify-center gap-6">
+      <View className="mt-6 mb-4 flex-row flex-wrap justify-center gap-4">
         <Pressable
           onPress={() => router.push('/stats')}
           className="items-center flex-row justify-center gap-2 py-3"
@@ -248,6 +248,13 @@ export default function Home() {
         >
           <Text className="text-lg">🏆</Text>
           <Text variant="muted" className="text-sm">Ranking</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push('/tournament/create' as never)}
+          className="items-center flex-row justify-center gap-2 py-3"
+        >
+          <Text className="text-lg">🥇</Text>
+          <Text variant="muted" className="text-sm">Torneo</Text>
         </Pressable>
       </View>
     </Screen>

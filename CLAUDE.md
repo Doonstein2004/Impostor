@@ -288,6 +288,28 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-06-25 (tanda 15) — Reacciones en tiempo real, modo torneo, fix E2E y build script mejorado
+
+- **Reacciones en tiempo real durante el juego**:
+  - Nueva tabla `liveReactions` (roomId, clientId, playerName, emoji, sentAt).
+  - Mutation `liveReactions.send` (rate limit 1/s por jugador) + query `list` + `_cleanup` internal (auto-elimina tras 5s con `ctx.scheduler`).
+  - `LiveReactionOverlay.tsx`: overlay absoluto con `pointerEvents: 'box-none'`. Emojis flotantes con `FadeIn` + `translateY` + `FadeOut` (Reanimated). Barra de 8 emojis fija en la parte inferior, encima del chat dock. Se integra en `GameRound.tsx` pasando `bottomOffset={chatInset}`.
+  - **Requiere push a Convex** (nueva tabla + funciones).
+
+- **Modo torneo**:
+  - Nueva tabla `tournaments` (code, name, hostClientId, format, teams, playerTeams, bracket, config). Índice `by_code`.
+  - Formato `elimination` (bracket estilo copa) o `round_robin` (todos vs todos). La función `buildEliminationBracket` genera matches incluyendo byes para N equipos no potencia de 2. Los ganadores avanzan automáticamente al siguiente slot del bracket en `recordMatchResult`.
+  - Mutations: `create`, `start`, `setMatchRoom`, `recordMatchResult`. Queries: `get` (por código), `getById`.
+  - Pantalla `app/tournament/create.tsx`: nombre, formato, equipos (color + nombre), asignación de jugadores a equipos. El host se agrega a sí mismo eligiendo su equipo.
+  - Pantalla `app/tournament/[code].tsx`: bracket reactivo por ronda con labels (Cuartos/Semis/Final), clasificación round-robin, podio final, botón "Iniciar match" (crea sala Convex + enlaza al torneo), botón "Registrar resultado" con modal. Comparte resultado con `Share.share`.
+  - Link "Torneo" agregado al home (`index.tsx`). Rutas registradas en `_layout.tsx`.
+  - **Requiere push a Convex** (nuevas tablas + funciones).
+
+- **Fix E2E tests — timeout**:
+  - `playwright.config.ts`: `timeout` 30s→60s, `webServer.timeout` 120s→180s, añadido `stdout/stderr: 'pipe'`. Documentado el workflow correcto (dev server en terminal 1, tests en terminal 2).
+  - `home.spec.ts`: `beforeEach` espera 50s a que Metro compile el bundle inicial.
+  - Tests de backend (`game.test.ts`, `rooms.test.ts`): añadido `/// <reference types="vite/client" />`, corregido typo `currentSpeakerClientId` → `currentSpeakerId`, añadido `playerName` faltante en `submitClueAndAdvance`, cast correcto de `zones/eras/roles` a tipos union (antes `string[]`).
+
 ### 2026-06-24 (tanda 14) — Salas con contraseña, límite de jugadores, rediseño de pistas, abstención, podio y sync script
 
 - **Salas con contraseña**: campo `password` (optional string) en la tabla `rooms`. El host puede

@@ -36,6 +36,7 @@ import { friendlyError } from '@/lib/errors';
 import { avatarHex } from '@/lib/avatars';
 import { CLUE_EMOJIS, POSITION_COLORS } from './types';
 import type { RoomView } from './types';
+import { LiveReactionOverlay } from './LiveReactionOverlay';
 
 type ReactionEntry = { emoji: string; count: number };
 
@@ -870,13 +871,16 @@ export function GameRound({ room }: { room: RoomView }) {
     </View>
   ) : null;
 
+  // Alto de la barra de reacciones (46px) + el inset del chat
+  const reactionBarHeight = 46;
+
   return (
     <Screen noPadding>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: 16, paddingTop: 8,
-          paddingBottom: chatInset,
+          paddingBottom: chatInset + reactionBarHeight,
         }}
         showsVerticalScrollIndicator={Platform.OS === 'web'}
         keyboardShouldPersistTaps="handled"
@@ -991,6 +995,14 @@ export function GameRound({ room }: { room: RoomView }) {
           </>
         )}
       </ScrollView>
+
+      {/* Reacciones en tiempo real — overlay absoluto encima del chat */}
+      <LiveReactionOverlay
+        roomId={room._id}
+        clientId={clientId}
+        playerName={name ?? ''}
+        bottomOffset={chatInset}
+      />
     </Screen>
   );
 }

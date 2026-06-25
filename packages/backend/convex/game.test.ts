@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import schema from './schema';
@@ -8,9 +9,9 @@ const modules = import.meta.glob('./**/*.ts');
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 const BASE_CONFIG = {
-  zones: [] as string[],
-  eras: [] as string[],
-  roles: ['jugador', 'dt'] as string[],
+  zones: [] as ('portero' | 'defensor' | 'medio' | 'atacante')[],
+  eras: [] as ('antiguo' | 'leyenda' | 'moderno' | 'experimentado' | 'actual' | 'joven_promesa')[],
+  roles: ['jugador', 'dt'] as ('jugador' | 'dt')[],
   clubs: [] as string[],
   impostorCount: 1,
   impostorHint: 'nada' as const,
@@ -48,13 +49,6 @@ async function setupGame(t: ReturnType<typeof convexTest>) {
   return { code, roomId, roundId, players };
 }
 
-/** Avanza la fase de pistas y abre la votación. */
-async function openVoting(
-  t: ReturnType<typeof convexTest>,
-  roomId: ReturnType<typeof convexTest>['mutation'] extends (...args: any) => Promise<infer R> ? R : never,
-  _roomId: any,
-) { /* reemplazado abajo por versión simple */ }
-
 // ─── abstención en votación ──────────────────────────────────────────────────
 
 describe('game.reveal — abstención (self-vote)', () => {
@@ -64,12 +58,13 @@ describe('game.reveal — abstención (self-vote)', () => {
 
     // Dar una pista rápida para poder votar (el backend requiere al menos 1 vuelta).
     const round = await t.query(api.game.getRound, { roundId });
-    if (round?.currentSpeakerClientId) {
-      // Cada jugador da su pista.
+    if (round?.currentSpeakerId) {
+      // Cada jugador da su pista (ignoramos errores de turno).
       for (const p of players.filter((p) => !p.isSpectator)) {
         await t.mutation(api.game.submitClueAndAdvance, {
           roundId,
           clientId: p.clientId,
+          playerName: p.name,
           text: 'pista de prueba',
         }).catch(() => { /* puede fallar si no es su turno */ });
       }
