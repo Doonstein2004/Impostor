@@ -93,14 +93,45 @@ EXPO_PUBLIC_CONVEX_URL=https://curious-sheep-977.convex.cloud
     classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}")
     ```
 
-### Pasos completos para compilar el APK debug
+### Script de build: `scripts/build-android.ps1`
+
+Wrapper PowerShell que configura Java 17 y llama a Gradle. Usar en vez de los pasos manuales.
+
+```powershell
+# Uso básico (APK arm64 debug, ~55 MB — para probar en el celular)
+.\scripts\build-android.ps1
+
+# Opciones principales
+.\scripts\build-android.ps1 -Abi arm64        # arm64-v8a (defecto, modernos)
+.\scripts\build-android.ps1 -Abi universal    # todas las ABIs (~216 MB, comportamiento viejo)
+.\scripts\build-android.ps1 -BuildType release -Minify   # ~28 MB con R8
+.\scripts\build-android.ps1 -Bundle -BuildType release   # AAB para Play Store
+.\scripts\build-android.ps1 -Clean -Install              # clean + instalar por ADB
+```
+
+**Por qué el universal pesa 216 MB**: 4 ABIs × libs nativas (RN + Reanimated + LiveKit/WebRTC).
+WebRTC pesa ~30–40 MB por ABI. En Play Store el usuario descarga solo su ABI (~20 MB).
+
+**Cómo funciona la restricción de ABI**: el script pasa `-PreactNativeArchitectures=arm64-v8a`
+a Gradle. Esta propiedad es nativa del plugin de RN (ya existe en `gradle.properties`) y no
+requiere modificar `build.gradle`. El APK resultante es ~55 MB (arm64 debug).
+
+**Tamaños esperados**:
+| Modo | Tamaño |
+|------|--------|
+| arm64 debug | ~55 MB |
+| arm64 release | ~50 MB |
+| arm64 release + Minify | ~28 MB |
+| universal debug | ~216 MB |
+| AAB release (Play Store) | ~45 MB (descarga ~20 MB) |
+
+### Pasos manuales (alternativa al script)
 
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot"
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
 cd "C:\Dev\Impostor\apps\mobile\android"
-.\gradlew clean
-.\gradlew app:assembleDebug -x lint -x test
+.\gradlew app:assembleDebug -x lint -x test -PreactNativeArchitectures=arm64-v8a
 # APK: C:\Dev\Impostor\apps\mobile\android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
