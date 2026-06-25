@@ -1,14 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-/**
- * Smoke tests de la pantalla de inicio.
- * Verifican que la app carga, renderiza los elementos clave y responde a la
- * interacción básica antes de entrar a una sala.
- */
 test.describe('Home screen', () => {
   test.beforeEach(async ({ page }) => {
-    // El primer goto puede tardar mientras Metro compila; el timeout del test (60s) cubre esto.
     await page.goto('/');
+    // El primer goto puede tardar mientras Metro compila; el timeout del test (60s) cubre esto.
     await expect(page.getByText('IMPOSTOR')).toBeVisible({ timeout: 50_000 });
   });
 
@@ -23,20 +18,20 @@ test.describe('Home screen', () => {
   test('valida nombre vacío antes de crear sala', async ({ page }) => {
     // Sin nombre, hacer clic en Crear sala debe mostrar error inline.
     await page.getByText('Crear sala').click();
-    await expect(page.getByText(/nombre/i)).toBeVisible();
+    // El mensaje exacto es "Ingresá tu nombre (mínimo 2 letras) para jugar."
+    await expect(page.getByText(/mínimo 2 letras/i)).toBeVisible();
   });
 
   test('valida nombre vacío antes de unirse', async ({ page }) => {
     // Sin nombre, hacer clic en Unirme debe mostrar error inline.
     await page.getByText('Unirme').click();
-    await expect(page.getByText(/nombre/i)).toBeVisible();
+    await expect(page.getByText(/mínimo 2 letras/i)).toBeVisible();
   });
 
   test('error con código inexistente', async ({ page }) => {
     await page.getByPlaceholder('Ej. Dani').fill('TestPlayer');
     await page.getByPlaceholder('ABC123').fill('ZZZZZZ');
     await page.getByText('Unirme').click();
-    // Debe aparecer un mensaje de error (código no encontrado).
     await expect(page.getByText(/no existe|no encontr|code/i)).toBeVisible({ timeout: 10_000 });
   });
 
