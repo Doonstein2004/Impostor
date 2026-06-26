@@ -37,6 +37,10 @@ export const gameConfigValidator = v.object({
   penaltyWrongVote: v.optional(v.boolean()),
   /** Máximo de jugadores (no espectadores) permitidos en la sala. 0 o ausente = sin límite. */
   maxPlayers: v.optional(v.number()),
+  /** Modo declaracion: cada jugador declara si conoce o no al personaje en lugar de dar pista libre. */
+  declarationMode: v.optional(v.boolean()),
+  /** Activa el rol Complice: un inocente aliado del impostor que gana con el equipo impostor. */
+  hasComplice: v.optional(v.boolean()),
 });
 
 export const roomStatusValidator = v.union(
@@ -94,6 +98,8 @@ export default defineSchema({
     turnStartedAt: v.optional(v.number()),
     /** Timestamp cuando se abrió la votación. */
     votingStartedAt: v.optional(v.number()),
+    /** clientId del cómplice asignado en esta ronda (si hasComplice estaba activo). */
+    compliceClientId: v.optional(v.string()),
     /** clientId del jugador más votado (null si hubo empate). */
     ejectedClientId: v.optional(v.union(v.string(), v.null())),
     /** true cuando los inocentes ganaron la ronda. */
@@ -107,6 +113,10 @@ export default defineSchema({
     roundId: v.id('rounds'),
     clientId: v.string(),
     isImpostor: v.boolean(),
+    /** true si el jugador es el complice (inocente aliado del impostor). */
+    isComplice: v.optional(v.boolean()),
+    /** clientId del impostor que el complice conoce. Solo presente si isComplice===true. */
+    knowsImpostorClientId: v.optional(v.string()),
     shownCharacterId: v.union(v.string(), v.null()),
     hint: v.optional(v.string()),
   })

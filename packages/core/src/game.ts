@@ -66,9 +66,27 @@ export function setupRound({ playerIds, pool, config, rng = defaultRng }: SetupR
   const shuffled = shuffle(playerIds, rng);
   const impostorIds = new Set(shuffled.slice(0, maxImpostors));
 
+  // Elegir cómplice: un inocente al azar que conoce al impostor y gana con él.
+  // Requiere al menos 1 inocente disponible (con 3 jugadores funciona: 1 imp + 1 cóm + 1 ino).
+  const firstImpostorId = [...impostorIds][0] ?? null;
+  const innocentIds = playerIds.filter((id) => !impostorIds.has(id));
+  const compliceId =
+    config.hasComplice && innocentIds.length > 0 && firstImpostorId
+      ? (shuffle(innocentIds, rng)[0] ?? null)
+      : null;
+
   const assignments: RoleAssignment[] = playerIds.map((playerId) => {
     const isImpostor = impostorIds.has(playerId);
     if (!isImpostor) {
+      if (playerId === compliceId) {
+        return {
+          playerId,
+          isImpostor: false,
+          isComplice: true,
+          shownCharacter: secret,
+          knowsImpostorClientId: firstImpostorId,
+        };
+      }
       return { playerId, isImpostor: false, shownCharacter: secret };
     }
     switch (config.impostorHint) {

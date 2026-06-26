@@ -288,6 +288,42 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-06-26 (tanda 16) — Modo declaración, rol Cómplice, fix E2E y color picker compacto
+
+- **Modo declaración** (`declarationMode: boolean` en `GameConfig`):
+  - Toggle en la tab "Reglas" del Lobby (dorado cuando activo).
+  - Cuando está activo, el input libre de pistas se reemplaza por dos botones:
+    **"✅ Lo conozco"** y **"❌ No lo conozco"**. Cada jugador debe elegir uno.
+  - Implementado puramente en el cliente: los valores se envían como texto de pista normal
+    vía `submitClueAndAdvance`, sin cambios de backend. El feed de pistas muestra el emoji
+    de forma natural.
+  - **Por qué**: reduce la ambigüedad en grupos donde no todos conocen bien los personajes.
+    Fuerza a tomar postura pública sin revelar pistas específicas.
+
+- **Rol Cómplice** (`hasComplice: boolean` en `GameConfig`):
+  - Toggle en la tab "Partida" del Lobby (morado cuando activo).
+  - Al iniciar la ronda, `setupRound` elige un inocente al azar como cómplice. El cómplice:
+    - Ve el personaje secreto igual que los inocentes.
+    - Ve el nombre del impostor en su carta (sección "ALIADO SECRETO").
+    - Gana y pierde con el **equipo impostor** en todos los escenarios de puntuación.
+    - Está exento de la penalidad de voto incorrecto (se trata como equipo impostor).
+  - Schema: campo `compliceClientId` en `rounds`, campos `isComplice` + `knowsImpostorClientId`
+    en `assignments`.
+  - Reveal screen: card morada "El cómplice era…" entre el reveal del impostor y el botón de compartir.
+  - `getMyCard`: devuelve `isComplice: bool` + `knowsImpostorName: string|null` (lookup por
+    índice `by_room_client`).
+  - `getReveal`: devuelve `compliceClientId: string|null`.
+  - **Requiere push a Convex** (schema nuevo + cambios en `startRound`, `quickRematch`, `reveal`,
+    `submitImpostorGuess`, `getMyCard`, `getReveal`).
+
+- **Fix E2E + color picker compacto**:
+  - `playwright.config.ts`: `workers: 1` para serializar todos los tests (evita sobrecarga
+    de Metro + Convex con 3 workers paralelos).
+  - Selectores migrados de `getByRole('button', ...)` a `getByText(...).first()` —
+    React Native Web renderiza `Pressable` como `<div>` sin `role="button"` en el DOM.
+  - `ColorPicker`: prop `compact` (swatches 20px). En el Lobby se usa con `flex-1` para que
+    los 12 colores quepan en una fila sin desbordarse.
+
 ### 2026-06-25 (tanda 15) — Reacciones en tiempo real, modo torneo, fix E2E y build script mejorado
 
 - **Reacciones en tiempo real durante el juego**:

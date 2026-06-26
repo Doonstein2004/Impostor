@@ -15,7 +15,8 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,          // primer page.goto puede tardar ~45s compilando Metro
   expect: { timeout: 10_000 },
-  fullyParallel: false,     // Convex compartido -> tests secuenciales para evitar conflictos
+  fullyParallel: false,
+  workers: 1,               // Un solo worker: evita sobrecargar Metro+Convex en paralelo
   retries: 1,
   reporter: 'list',
 

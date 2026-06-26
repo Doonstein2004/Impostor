@@ -112,8 +112,13 @@ function PokerCard({ card, speakerIndex }: { card: any; speakerIndex: number }) 
         <Animated.View style={flipStyle}>
           {revealed ? (
             <View
-              className={`rounded-2xl items-center py-8 px-6 gap-3 border-2
-                ${card?.isImpostor ? 'border-impostor-500 bg-impostor-500/10' : 'border-gold-400 bg-gold-400/5'}`}
+              className={`rounded-2xl items-center py-8 px-6 gap-3 border-2 ${
+                card?.isImpostor
+                  ? 'border-impostor-500 bg-impostor-500/10'
+                  : card?.isComplice
+                  ? 'border-purple-500 bg-purple-500/10'
+                  : 'border-gold-400 bg-gold-400/5'
+              }`}
             >
               <View className="absolute top-3 left-4 opacity-40">
                 <Text className="text-gold-400 text-xl">{suit}</Text>
@@ -140,6 +145,29 @@ function PokerCard({ card, speakerIndex }: { card: any; speakerIndex: number }) 
                   ) : (
                     <Text variant="muted" className="text-xs text-center">Improvisá. No tenés pista.</Text>
                   )}
+                </>
+              ) : card?.isComplice ? (
+                <>
+                  <View className="h-16 w-16 rounded-full bg-purple-500/20 border-2 border-purple-500 items-center justify-center">
+                    <Text style={{ fontSize: 32 }}>🤝</Text>
+                  </View>
+                  <Text variant="display" className="text-purple-400 text-2xl tracking-widest">
+                    CÓMPLICE
+                  </Text>
+                  {colors && (
+                    <View className={`px-3 py-0.5 rounded-full border ${colors.bg} ${colors.border}`}>
+                      <Text className={`text-xs font-display tracking-widest ${colors.text}`}>{colors.label}</Text>
+                    </View>
+                  )}
+                  <Text variant="display" className="text-gold-400 text-2xl text-center leading-tight">
+                    {card?.character?.name ?? '—'}
+                  </Text>
+                  {card?.knowsImpostorName ? (
+                    <View className="items-center gap-0.5 mt-1 px-3 py-2 rounded-xl bg-purple-500/10 border border-purple-500/30">
+                      <Text variant="label" className="text-purple-400 text-xs tracking-widest">ALIADO SECRETO</Text>
+                      <Text variant="title" className="text-purple-300 text-center">{card.knowsImpostorName}</Text>
+                    </View>
+                  ) : null}
                 </>
               ) : (
                 <>
@@ -227,7 +255,29 @@ function SpeakerSpotlight({ name, speakerIndex }: { name: string; speakerIndex: 
 function MyCardStrip({ card }: { card: any }) {
   if (!card) return null;
   const isImpostor = card.isImpostor;
+  const isComplice = card.isComplice as boolean | undefined;
   const charName = card.character?.name as string | undefined;
+
+  const borderColor = isImpostor
+    ? 'rgba(239,68,68,0.3)'
+    : isComplice
+    ? 'rgba(168,85,247,0.35)'
+    : 'rgba(245,158,11,0.22)';
+  const bgColor = isImpostor
+    ? 'rgba(239,68,68,0.06)'
+    : isComplice
+    ? 'rgba(168,85,247,0.07)'
+    : 'rgba(245,158,11,0.05)';
+  const labelColor = isImpostor ? '#f87171' : isComplice ? '#c084fc' : '#d97706';
+  const textColor = isImpostor ? '#fca5a5' : isComplice ? '#e9d5ff' : '#fde68a';
+  const label = isImpostor ? 'IMPOSTOR' : isComplice ? 'CÓMPLICE' : 'VOS';
+
+  const displayText = isImpostor
+    ? (charName ? `Disimulá con: ${charName}` : card.hint ? `Pista: ${card.hint}` : 'Sin pista — improvisá')
+    : isComplice
+    ? (charName ? `${charName}  ·  Aliado: ${card.knowsImpostorName ?? '?'}` : '—')
+    : (charName ?? '—');
+
   return (
     <Animated.View
       entering={FadeIn.duration(400)}
@@ -235,34 +285,26 @@ function MyCardStrip({ card }: { card: any }) {
         flexDirection: 'row', alignItems: 'center', gap: 10,
         paddingHorizontal: 12, paddingVertical: 8,
         borderRadius: 12, borderWidth: 1, marginBottom: 12,
-        borderColor: isImpostor ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.22)',
-        backgroundColor: isImpostor ? 'rgba(239,68,68,0.06)' : 'rgba(245,158,11,0.05)',
+        borderColor, backgroundColor: bgColor,
       }}
     >
       <View
         style={{
           paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1,
-          borderColor: isImpostor ? 'rgba(239,68,68,0.45)' : 'rgba(245,158,11,0.35)',
-          backgroundColor: isImpostor ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.10)',
+          borderColor: labelColor + '70',
+          backgroundColor: labelColor + '18',
         }}
       >
-        <Text style={{ fontSize: 9, letterSpacing: 2, fontWeight: '700', color: isImpostor ? '#f87171' : '#d97706' }}>
-          {isImpostor ? 'IMPOSTOR' : 'VOS'}
+        <Text style={{ fontSize: 9, letterSpacing: 2, fontWeight: '700', color: labelColor }}>
+          {label}
         </Text>
       </View>
       <View style={{ width: 1, height: 14, backgroundColor: '#27272a' }} />
       <Text
-        style={{ flex: 1, fontSize: 14, fontWeight: '700', letterSpacing: 0.3,
-          color: isImpostor ? '#fca5a5' : '#fde68a' }}
+        style={{ flex: 1, fontSize: 14, fontWeight: '700', letterSpacing: 0.3, color: textColor }}
         numberOfLines={1}
       >
-        {isImpostor
-          ? (charName
-              ? `Disimulá con: ${charName}`
-              : card.hint
-              ? `Pista: ${card.hint}`
-              : 'Sin pista — improvisá')
-          : (charName ?? '—')}
+        {displayText}
       </Text>
     </Animated.View>
   );
@@ -709,6 +751,18 @@ export function GameRound({ room }: { room: RoomView }) {
     }
   }
 
+  async function handleDeclaration(value: '✅ Lo conozco' | '❌ No lo conozco') {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await submitClue({ roundId, clientId, playerName: name, text: value });
+    } catch (e) {
+      toast.error(friendlyError(e, 'No se pudo enviar tu declaración (quizás cambió el turno).'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (card === undefined || round === undefined || clues === undefined) {
     return (
       <Screen>
@@ -911,43 +965,74 @@ export function GameRound({ room }: { room: RoomView }) {
             {/* Tu personaje — referencia compacta (sin scroll) */}
             <MyCardStrip card={card} />
 
-            {/* Input de pista — arriba, accesible al instante */}
+            {/* Input de pista / declaración — arriba, accesible al instante */}
             <Animated.View entering={FadeInUp.delay(120).springify()}>
-              <Card className="gap-2 border-gold-500/30 bg-gold-500/5">
-                <Text variant="label" className="text-gold-500 tracking-widest text-xs">
-                  ✍️ ESCRIBÍ TU PISTA
-                </Text>
-                <View className="flex-row gap-2">
-                  <TextInput
-                    ref={inputRef}
-                    value={text}
-                    onChangeText={setText}
-                    placeholder={
-                      card?.isImpostor
-                        ? 'Disimulá bien… una sola palabra'
-                        : 'Ej: "zurdo", "europeo", "campeón del mundo"'
-                    }
-                    placeholderTextColor="#52525b"
-                    maxLength={60}
-                    returnKeyType="send"
-                    autoFocus
-                    onSubmitEditing={handleSubmit}
-                    className="flex-1 h-12 rounded-xl border border-gold-500/20 bg-surface-soft px-3 text-white text-base"
-                  />
-                  <Pressable
-                    onPress={handleSubmit}
-                    disabled={busy || !text.trim()}
-                    className={`h-12 w-12 rounded-xl items-center justify-center ${text.trim() ? 'bg-gold-500' : 'bg-surface-soft'}`}
-                  >
-                    {busy ? (
-                      <ActivityIndicator color="#fff" size="small" />
-                    ) : (
-                      <Text className="text-xl font-display">→</Text>
-                    )}
-                  </Pressable>
-                </View>
-                <Text variant="label" className="text-zinc-700 text-xs">{60 - text.length} restantes</Text>
-              </Card>
+              {room.config.declarationMode ? (
+                <Card className="gap-3 border-gold-500/30 bg-gold-500/5">
+                  <Text variant="label" className="text-gold-500 tracking-widest text-xs">
+                    🤔 ¿LO CONOCÉS?
+                  </Text>
+                  <View className="flex-row gap-2">
+                    <Pressable
+                      onPress={() => handleDeclaration('✅ Lo conozco')}
+                      disabled={busy}
+                      className="flex-1 h-12 rounded-xl items-center justify-center bg-pitch-500/20 border border-pitch-500/40 active:opacity-70"
+                    >
+                      {busy ? <ActivityIndicator color="#fff" size="small" /> : (
+                        <Text className="text-base font-display text-pitch-300">✅ Lo conozco</Text>
+                      )}
+                    </Pressable>
+                    <Pressable
+                      onPress={() => handleDeclaration('❌ No lo conozco')}
+                      disabled={busy}
+                      className="flex-1 h-12 rounded-xl items-center justify-center bg-impostor-500/20 border border-impostor-500/40 active:opacity-70"
+                    >
+                      {busy ? <ActivityIndicator color="#fff" size="small" /> : (
+                        <Text className="text-base font-display text-impostor-300">❌ No lo conozco</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                  <Text variant="label" className="text-zinc-700 text-xs">
+                    {card?.isImpostor ? 'Elegí lo que más te convenga para no delatarte.' : 'Declarás si reconocés el personaje o no.'}
+                  </Text>
+                </Card>
+              ) : (
+                <Card className="gap-2 border-gold-500/30 bg-gold-500/5">
+                  <Text variant="label" className="text-gold-500 tracking-widest text-xs">
+                    ✍️ ESCRIBÍ TU PISTA
+                  </Text>
+                  <View className="flex-row gap-2">
+                    <TextInput
+                      ref={inputRef}
+                      value={text}
+                      onChangeText={setText}
+                      placeholder={
+                        card?.isImpostor
+                          ? 'Disimulá bien… una sola palabra'
+                          : 'Ej: "zurdo", "europeo", "campeón del mundo"'
+                      }
+                      placeholderTextColor="#52525b"
+                      maxLength={60}
+                      returnKeyType="send"
+                      autoFocus
+                      onSubmitEditing={handleSubmit}
+                      className="flex-1 h-12 rounded-xl border border-gold-500/20 bg-surface-soft px-3 text-white text-base"
+                    />
+                    <Pressable
+                      onPress={handleSubmit}
+                      disabled={busy || !text.trim()}
+                      className={`h-12 w-12 rounded-xl items-center justify-center ${text.trim() ? 'bg-gold-500' : 'bg-surface-soft'}`}
+                    >
+                      {busy ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text className="text-xl font-display">→</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                  <Text variant="label" className="text-zinc-700 text-xs">{60 - text.length} restantes</Text>
+                </Card>
+              )}
             </Animated.View>
 
             {/* Ver carta completa — opcional, colapsado por defecto */}

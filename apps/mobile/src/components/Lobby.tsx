@@ -307,6 +307,23 @@ function ConfigTabs({
                 })}
               </View>
             </View>
+
+            <Pressable
+              onPress={() => onPatch({ hasComplice: !config.hasComplice })}
+              className={`flex-row items-center gap-3 px-3 py-3 rounded-xl border
+                ${config.hasComplice ? 'border-purple-500/40 bg-purple-500/10' : 'border-surface-border bg-surface-soft'}`}
+            >
+              <Text style={{ fontSize: 20 }}>🤝</Text>
+              <View className="flex-1 gap-0.5">
+                <Text className={`text-xs font-display ${config.hasComplice ? 'text-purple-400' : 'text-zinc-400'}`}>
+                  Rol Cómplice {config.hasComplice ? '— ACTIVO' : '— desactivado'}
+                </Text>
+                <Text className="text-zinc-600 text-xs">Un inocente conoce al impostor y gana con él</Text>
+              </View>
+              <View className={`w-10 h-5 rounded-full items-center justify-center ${config.hasComplice ? 'bg-purple-500' : 'bg-zinc-700'}`}>
+                <Text className="text-white text-xs font-display">{config.hasComplice ? 'ON' : 'OFF'}</Text>
+              </View>
+            </Pressable>
           </>
         )}
 
@@ -560,6 +577,23 @@ function ConfigTabs({
                 })}
               </View>
             </View>
+
+            <Pressable
+              onPress={() => onPatch({ declarationMode: !config.declarationMode })}
+              className={`flex-row items-center gap-3 px-3 py-3 rounded-xl border
+                ${config.declarationMode ? 'border-gold-500/40 bg-gold-500/10' : 'border-surface-border bg-surface-soft'}`}
+            >
+              <Text style={{ fontSize: 20 }}>🤔</Text>
+              <View className="flex-1 gap-0.5">
+                <Text className={`text-xs font-display ${config.declarationMode ? 'text-gold-400' : 'text-zinc-400'}`}>
+                  Modo declaración {config.declarationMode ? '— ACTIVO' : '— desactivado'}
+                </Text>
+                <Text className="text-zinc-600 text-xs">¿Lo conocés? en lugar de pistas libres</Text>
+              </View>
+              <View className={`w-10 h-5 rounded-full items-center justify-center ${config.declarationMode ? 'bg-gold-500' : 'bg-zinc-700'}`}>
+                <Text className="text-white text-xs font-display">{config.declarationMode ? 'ON' : 'OFF'}</Text>
+              </View>
+            </Pressable>
           </>
         )}
 
@@ -932,8 +966,10 @@ export function Lobby({ room }: { room: RoomView }) {
       {/* Tu color — compacto, sin Card */}
       <Animated.View entering={FadeInDown.delay(160).duration(400)}>
         <View className="flex-row items-center gap-2 mb-4 px-1">
-          <Text variant="label" className="text-zinc-600 text-xs">Color:</Text>
-          <ColorPicker value={avatarColor} onChange={pickColor} label="" />
+          <Text variant="label" className="text-zinc-600 text-xs shrink-0">Color:</Text>
+          <View className="flex-1">
+            <ColorPicker value={avatarColor} onChange={pickColor} label="" compact />
+          </View>
         </View>
       </Animated.View>
 

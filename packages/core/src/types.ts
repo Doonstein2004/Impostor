@@ -54,6 +54,16 @@ export interface GameConfig {
   penaltyWrongVote?: boolean;
   /** Máximo de jugadores permitidos (sin contar espectadores). 0 o ausente = sin límite (máx. 10). */
   maxPlayers?: number;
+  /**
+   * Modo declaración: en lugar de dar pistas de texto libre, cada jugador declara
+   * si conoce o no al personaje. Útil para jugadores que prefieren bluffing directo.
+   */
+  declarationMode?: boolean;
+  /**
+   * Activa el rol de Cómplice: un jugador inocente que conoce al impostor y gana con él.
+   * El cómplice ve el personaje real pero también sabe quién es el impostor.
+   */
+  hasComplice?: boolean;
 }
 
 export const DEFAULT_CONFIG: GameConfig = {
@@ -168,10 +178,14 @@ export type RoomStatus = 'lobby' | 'playing' | 'voting' | 'impostorGuessing' | '
 export interface RoleAssignment {
   playerId: string;
   isImpostor: boolean;
+  /** true si el jugador fue asignado como cómplice (inocente aliado del impostor). */
+  isComplice?: boolean;
   /** Personaje secreto que ve el jugador (los inocentes ven el real). */
   shownCharacter: Character | null;
   /** Pista textual para el impostor cuando impostorHint === 'pista'. */
   hint?: string;
+  /** clientId del impostor que conoce el cómplice (solo presente si isComplice === true). */
+  knowsImpostorClientId?: string | null;
 }
 
 /** Resultado del reparto de una ronda. */

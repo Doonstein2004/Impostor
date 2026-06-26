@@ -116,10 +116,12 @@ export const startRound = mutation({
 
     const speakerOrder = shuffleArr(players.map((p) => p.clientId));
 
+    const compliceAssignment = assignments.find((a) => a.isComplice);
     const roundId = await ctx.db.insert('rounds', {
       roomId,
       secretCharacterId: secret.id,
       impostorClientIds: assignments.filter((a) => a.isImpostor).map((a) => a.playerId),
+      compliceClientId: compliceAssignment?.playerId,
       status: 'playing',
       currentTurn: 1,
       speakerOrder,
@@ -133,6 +135,8 @@ export const startRound = mutation({
         roundId,
         clientId: a.playerId,
         isImpostor: a.isImpostor,
+        isComplice: a.isComplice ?? false,
+        knowsImpostorClientId: a.knowsImpostorClientId ?? undefined,
         shownCharacterId: a.shownCharacter?.id ?? null,
         hint: a.hint,
       });
@@ -298,10 +302,28 @@ export const getMyCard = query({
     if (!assignment) return null;
 
     const shown = assignment.shownCharacterId ? charById.get(assignment.shownCharacterId) : null;
+
+    // Para el cómplice: buscar el nombre del jugador impostor para mostrarlo en la carta
+    let knowsImpostorName: string | null = null;
+    if (assignment.isComplice && assignment.knowsImpostorClientId) {
+      const round = await ctx.db.get(roundId);
+      if (round) {
+        const impostorPlayer = await ctx.db
+          .query('players')
+          .withIndex('by_room_client', (q) =>
+            q.eq('roomId', round.roomId).eq('clientId', assignment.knowsImpostorClientId!),
+          )
+          .first();
+        knowsImpostorName = impostorPlayer?.name ?? null;
+      }
+    }
+
     return {
       isImpostor: assignment.isImpostor,
+      isComplice: assignment.isComplice ?? false,
       character: shown ?? null,
       hint: assignment.hint ?? null,
+      knowsImpostorName,
     };
   },
 });
@@ -348,13 +370,15 @@ export const reveal = mutation({
       await ctx.db.patch(round._id, { status: 'impostorGuessing', ejectedClientId: ejected });
       await ctx.db.patch(roomId, { status: 'impostorGuessing' });
     } else {
-      // Impostores escaparon — ganan 2 puntos directamente
+      // Impostores escaparon — ganan 2 puntos directamente; el cómplice también gana con el equipo
+      const compliceClientId = round.compliceClientId ?? null;
       const players = await ctx.db
         .query('players')
         .withIndex('by_room', (q) => q.eq('roomId', roomId))
         .collect();
       for (const p of players) {
-        if (impostors.has(p.clientId)) await ctx.db.patch(p._id, { score: p.score + 2 });
+        const isTeamImpostor = impostors.has(p.clientId) || p.clientId === compliceClientId;
+        if (isTeamImpostor) await ctx.db.patch(p._id, { score: p.score + 2 });
       }
       await ctx.db.patch(round._id, {
         status: 'reveal',
@@ -362,7 +386,6 @@ export const reveal = mutation({
         innocentsWin: false,
       });
       await ctx.db.patch(roomId, { status: 'reveal' });
-      // Registrar stats: impostores ganan, inocentes pierden
       await recordStatsForRound(ctx, roomId, impostors, false, false, ejected);
     }
   },
@@ -398,31 +421,35 @@ export const submitImpostorGuess = mutation({
       .collect();
 
     const impostors = new Set(round.impostorClientIds);
+    const compliceClientId = round.compliceClientId ?? null;
     const config = room.config as GameConfig;
 
-    // Calculamos todos los deltas de score en un solo Map para evitar lecturas stale
-    // al aplicar el bonus y la penalidad en la misma transacción.
+    // Calculamos todos los deltas de score en un solo Map para evitar lecturas stale.
+    // El cómplice gana y pierde con el equipo impostor.
     const scoreDeltas = new Map<string, number>(players.map((p) => [p.clientId, 0]));
 
     for (const p of players) {
       const isImpostor = impostors.has(p.clientId);
-      if (impostorWonGuess && isImpostor) {
+      const isComplice = p.clientId === compliceClientId;
+      const isTeamImpostor = isImpostor || isComplice;
+      if (impostorWonGuess && isTeamImpostor) {
         scoreDeltas.set(p.clientId, 2);
-      } else if (!impostorWonGuess && !isImpostor) {
+      } else if (!impostorWonGuess && !isTeamImpostor) {
         scoreDeltas.set(p.clientId, 1);
       }
     }
 
-    // Penalidad por votar mal: -1 al inocente que votó a otro inocente (solo si innocentsWin).
+    // Penalidad por votar mal: -1 al inocente que votó a otro inocente.
+    // El cómplice está exento (es equipo impostor aunque parezca inocente).
     if (!impostorWonGuess && config.penaltyWrongVote) {
       const voteRows = await ctx.db
         .query('votes')
         .withIndex('by_round', (q) => q.eq('roundId', roundId))
         .collect();
       for (const vote of voteRows) {
-        const voterIsImpostor = impostors.has(vote.voterClientId);
+        const voterIsTeamImpostor = impostors.has(vote.voterClientId) || vote.voterClientId === compliceClientId;
         const targetIsImpostor = impostors.has(vote.targetClientId);
-        if (!voterIsImpostor && !targetIsImpostor && vote.voterClientId !== vote.targetClientId) {
+        if (!voterIsTeamImpostor && !targetIsImpostor && vote.voterClientId !== vote.targetClientId) {
           scoreDeltas.set(vote.voterClientId, (scoreDeltas.get(vote.voterClientId) ?? 0) - 1);
         }
       }
@@ -481,10 +508,12 @@ export const quickRematch = mutation({
 
     const speakerOrder = shuffleArr(players.map((p) => p.clientId));
 
+    const compliceAssignmentQ = assignments.find((a) => a.isComplice);
     const roundId = await ctx.db.insert('rounds', {
       roomId,
       secretCharacterId: secret.id,
       impostorClientIds: assignments.filter((a) => a.isImpostor).map((a) => a.playerId),
+      compliceClientId: compliceAssignmentQ?.playerId,
       status: 'playing',
       currentTurn: 1,
       speakerOrder,
@@ -498,6 +527,8 @@ export const quickRematch = mutation({
         roundId,
         clientId: a.playerId,
         isImpostor: a.isImpostor,
+        isComplice: a.isComplice ?? false,
+        knowsImpostorClientId: a.knowsImpostorClientId ?? undefined,
         shownCharacterId: a.shownCharacter?.id ?? null,
         hint: a.hint,
       });
@@ -564,6 +595,7 @@ export const getReveal = query({
 
     return {
       impostorClientIds: round.impostorClientIds,
+      compliceClientId: round.compliceClientId ?? null,
       secretCharacterId: round.secretCharacterId,
       secretCharacter: charById.get(round.secretCharacterId) ?? null,
       ejectedClientId: round.ejectedClientId ?? null,

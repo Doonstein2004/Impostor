@@ -95,6 +95,9 @@ export function Reveal({ room }: { room: RoomView }) {
 
   const impostorSet = new Set(data?.impostorClientIds ?? []);
   const impostors = room.players.filter((p) => impostorSet.has(p.clientId));
+  const complicePlayer = data?.compliceClientId
+    ? room.players.find((p) => p.clientId === data.compliceClientId) ?? null
+    : null;
   const innocentsWin = data?.innocentsWin ?? false;
   const impostorWonGuess = data?.impostorWonGuess ?? null;
 
@@ -227,8 +230,21 @@ export function Reveal({ room }: { room: RoomView }) {
         </Card>
       </Animated.View>
 
+      {/* Cómplice revelado */}
+      {complicePlayer && (
+        <Animated.View entering={FadeInDown.delay(850).duration(400)}>
+          <Card className="items-center gap-1 mb-4 border-purple-500/40 bg-purple-500/5">
+            <Text className="text-2xl mb-1">🤝</Text>
+            <Text variant="label" className="text-purple-400">El cómplice era</Text>
+            <Text variant="title" className="text-white">
+              {complicePlayer.name}{complicePlayer.clientId === clientId ? ' (vos)' : ''}
+            </Text>
+          </Card>
+        </Animated.View>
+      )}
+
       {/* Compartir resultado */}
-      <Animated.View entering={FadeInDown.delay(850).duration(400)} className="mb-4">
+      <Animated.View entering={FadeInDown.delay(900).duration(400)} className="mb-4">
         <Button title="📤 Compartir resultado" variant="secondary" onPress={handleShare} />
       </Animated.View>
 
