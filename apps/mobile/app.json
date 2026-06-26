@@ -19,7 +19,20 @@
       }
     },
     "android": {
-      "package": "com.doonbro.impostorfutbol"
+      "package": "com.doonbro.impostorfutbol",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "impostor-futbol.vercel.app"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",

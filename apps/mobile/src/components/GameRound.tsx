@@ -1,7 +1,7 @@
 import { api } from '@impostor/backend/api';
 import { Button, Card, Screen, Text } from '@impostor/ui';
 import { useMutation, useQuery } from 'convex/react';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -228,7 +228,7 @@ function PokerCard({ card, speakerIndex }: { card: any; speakerIndex: number }) 
 
 // ─── Speaker spotlight ─────────────────────────────────────────────────────
 
-function SpeakerSpotlight({ name, speakerIndex }: { name: string; speakerIndex: number }) {
+const SpeakerSpotlight = memo(function SpeakerSpotlight({ name, speakerIndex }: { name: string; speakerIndex: number }) {
   return (
     <Animated.View key={speakerIndex} entering={BounceIn.springify().damping(12)}>
       <View className="flex-row items-center gap-3 rounded-2xl py-3 px-4 border border-gold-500/20 bg-surface-card">
@@ -248,11 +248,11 @@ function SpeakerSpotlight({ name, speakerIndex }: { name: string; speakerIndex: 
       </View>
     </Animated.View>
   );
-}
+});
 
 // ─── Always-visible character strip ──────────────────────────────────────
 
-function MyCardStrip({ card }: { card: any }) {
+const MyCardStrip = memo(function MyCardStrip({ card }: { card: any }) {
   if (!card) return null;
   const isImpostor = card.isImpostor;
   const isComplice = card.isComplice as boolean | undefined;
@@ -308,11 +308,11 @@ function MyCardStrip({ card }: { card: any }) {
       </Text>
     </Animated.View>
   );
-}
+});
 
 // ─── My turn banner ───────────────────────────────────────────────────────
 
-function MyTurnBanner({ isImpostor }: { isImpostor: boolean }) {
+const MyTurnBanner = memo(function MyTurnBanner({ isImpostor }: { isImpostor: boolean }) {
   const pulse = useSharedValue(1);
 
   useEffect(() => {
@@ -374,11 +374,11 @@ function MyTurnBanner({ isImpostor }: { isImpostor: boolean }) {
       </Animated.View>
     </Animated.View>
   );
-}
+});
 
 // ─── Player order strip (horizontal, scrollable) ──────────────────────────
 
-function PlayerRow({
+const PlayerRow = memo(function PlayerRow({
   players, speakerOrder, currentIndex, clues, currentTurn,
 }: {
   players: RoomView['players'];
@@ -476,11 +476,11 @@ function PlayerRow({
       })}
     </ScrollView>
   );
-}
+});
 
 // ─── Clue card (compact, color-accent left bar, animated entry) ──────────
 
-function ClueCard({ clue, myClientId, playerColor, isLatest }: {
+const ClueCard = memo(function ClueCard({ clue, myClientId, playerColor, isLatest }: {
   clue: any;
   myClientId: string;
   playerColor?: string | null;
@@ -583,20 +583,23 @@ function ClueCard({ clue, myClientId, playerColor, isLatest }: {
       </View>
     </Animated.View>
   );
-}
+});
 
 // ─── Clues feed (persistente, agrupado por vuelta) ────────────────────────
 // Muestra TODAS las pistas de la ronda, agrupadas por vuelta, para tenerlas
 // siempre presentes durante la discusión.
 
-function CluesFeed({ clues, myClientId, currentTurn, players }: {
+const CluesFeed = memo(function CluesFeed({ clues, myClientId, currentTurn, players }: {
   clues: any[];
   myClientId: string;
   currentTurn: number;
   players: RoomView['players'];
 }) {
+  const colorMap = useMemo(
+    () => new Map(players.map((p) => [p.clientId, avatarHex(p.color, p.clientId)])),
+    [players],
+  );
   if (!clues.length) return null;
-  const colorMap = new Map(players.map((p) => [p.clientId, avatarHex(p.color, p.clientId)]));
   // Más recientes primero: vueltas desc y, dentro de cada vuelta, pistas desc.
   const turns = [...new Set(clues.map((c) => c.turn as number))].sort((a, b) => b - a);
   // Con una sola vuelta el header "VUELTA n" es redundante (ya hay título arriba).
@@ -637,7 +640,7 @@ function CluesFeed({ clues, myClientId, currentTurn, players }: {
       })}
     </View>
   );
-}
+});
 
 // ─── Main component ────────────────────────────────────────────────────────
 

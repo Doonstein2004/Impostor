@@ -86,6 +86,7 @@ $ErrorActionPreference = 'Stop'
 # --- Rutas ------------------------------------------------------------------
 $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $RepoRoot   = (Resolve-Path (Join-Path $ScriptDir "..")).Path
+$MobileDir  = Join-Path $RepoRoot "apps\mobile"
 $AndroidDir = Join-Path $RepoRoot "apps\mobile\android"
 
 # --- Java 17 ----------------------------------------------------------------
