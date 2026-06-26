@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.doonbro.impostorfutbol",
+      "sha256_cert_fingerprints": [
+        "58:9F:ED:17:A2:41:28:97:BB:7B:DA:BE:76:B4:82:25:10:26:86:1C:CD:AC:5B:99:29:CC:1C:78:F8:6F:17:4F"
+      ]
+    }
+  }
+]
