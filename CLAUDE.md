@@ -84,12 +84,13 @@ EXPO_PUBLIC_CONVEX_URL=https://curious-sheep-977.convex.cloud
     $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
     ```
 
-- **Kotlin 2.0.21** requerido por RN 0.86 + New Architecture (antes 1.9.25 para SDK 52).
+- **Kotlin 2.1.20** requerido por RN 0.86 / Expo 56 + New Architecture.
   - Seteado en `app.json` vía plugin `expo-build-properties`:
     ```json
-    { "android": { "kotlinVersion": "2.0.21" } }
+    { "android": { "kotlinVersion": "2.1.20" } }
     ```
   - Ya no hace falta el classpath explícito en `build.gradle` (expo-build-properties lo maneja).
+
 
 ### Script de build: `scripts/build-android.ps1`
 
@@ -286,7 +287,22 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-06-30 (tanda 18) — Parches de Uniwind, monorepo @source y correcciones SEO
+
+- **Resolución de especificidad en Web (Parche Uniwind)**:
+  - Las utilidades de Tailwind CSS v4 inyectadas mediante `@layer utilities` eran anuladas por los estilos estructurales por defecto (unlayered) de React Native Web (ej: `margin: 0px` anulaba a `.mt-12`).
+  - Solución: Actualicé [scripts/patch-uniwind.js](file:///C:/Dev/Impostor/scripts/patch-uniwind.js) para aplanar automáticamente todas las capas CSS nativas (`@layer utilities`, `@layer base`, `@layer theme`) en la compilación web de Uniwind, volviéndolas unlayered y dándoles la especificidad correcta.
+- **Configuración de escaneo Monorepo (`@source`)**:
+  - Se añadió la directiva `@source '../../packages/ui';` en [global.css](file:///C:/Dev/Impostor/apps/mobile/global.css) para que el compilador de Tailwind CSS v4 escanee y compile clases declaradas dentro de la librería compartida de componentes `@impostor/ui` (corrigiendo el bug del padding faltante en `Card.tsx`).
+- **Mejoras SEO y PageSpeed en Vercel**:
+  - Modifiqué [app.json](file:///C:/Dev/Impostor/apps/mobile/app.json) de la app móvil para cambiar el tipo de salida de la web a `"static"` (en lugar de `"single"` SPA). Esto activa la pre-renderización estática del HTML durante el build, inyectando meta descripciones, canonical links y contenido estructurado de [+html.tsx](file:///C:/Dev/Impostor/apps/mobile/app/+html.tsx) legible para crawlers de inmediato.
+  - Se actualizó el componente [Text.tsx](file:///C:/Dev/Impostor/packages/ui/src/Text.tsx) para mapear dinámicamente la variante `'display'` a un elemento `<h1>` semántico de HTML usando `role="heading"` y `aria-level={1}` en la web.
+  - Creado archivo [robots.txt](file:///C:/Dev/Impostor/apps/mobile/public/robots.txt) en la carpeta public de la app.
+- **Compilación de Android y Kotlin 2.1.20**:
+  - Se actualizó la versión de Kotlin a `2.1.20` en `app.json` y se eliminó el plugin heredado `withKotlinVersionCatalogFix` ya que causaba conflictos con Expo 56.
+
 ### 2026-06-29 (tanda 17) — Expo SDK 56, Uniwind, SEO, QR y performance
+
 
 - **Migración Expo SDK 52 → 56** (React 18 → 19.2.7, RN 0.76 → 0.86, expo-router 4 → 56):
   - Todos los paquetes `expo-*` actualizados a versiones `~56.0.x`.
