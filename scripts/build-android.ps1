@@ -138,10 +138,8 @@ $gradleArgs = @(
     "-PreactNativeArchitectures=$architectures"
 )
 
-if ($Minify -and $BuildType -eq 'release') {
-    $gradleArgs += '-Pandroid.enableProguardInReleaseBuilds=true'
-    $gradleArgs += '-Pandroid.enableShrinkResourcesInReleaseBuilds=true'
-}
+# Minify y ShrinkResources se manejan de forma nativa a traves de app.json (expo-build-properties)
+
 
 # --- Clean ------------------------------------------------------------------
 if ($Clean) {
