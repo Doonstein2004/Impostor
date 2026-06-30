@@ -23,8 +23,9 @@
                 │ usa                        │ reusa
         ┌───────▼────────┐          ┌────────▼────────┐
         │ @impostor/ui   │          │ @impostor/data  │
-        │ (NativeWind)   │          │ (dataset)       │
+        │ (Uniwind)      │          │ (dataset)       │
         └────────────────┘          └────────┬────────┘
+
                                               │ usa
    ┌──────────────────────────┐      ┌────────▼────────┐
    │ @impostor/backend (Convex)│◄─────┤ @impostor/core  │
@@ -58,14 +59,9 @@ re-renderizan solos cuando cambia el status (sin polling ni sockets manuales).
 
 ## Estilos
 
-`@impostor/ui` define un **preset de Tailwind** (`tailwind-preset.js`) con la paleta de
-marca (verde cancha / rojo impostor / superficies oscuras). Cada app lo extiende en su
-`tailwind.config.js`. Los componentes usan `className` vía NativeWind v4, que funciona
-igual en web y nativo.
+`@impostor/ui` define los componentes básicos y estilos compartidos del juego con la paleta de marca (verde cancha / rojo impostor / superficies oscuras). Los componentes usan `className` vía **Uniwind** (que vincula Tailwind CSS v4 con React Native), funcionando de la misma manera en web y nativo.
 
-> Nota sobre NativeWind en monorepo: el `tailwind.config.js` de la app incluye en `content`
-> la ruta a `packages/ui/src`, y `metro.config.js` agrega la raíz del workspace a
-> `watchFolders`, para que las clases del paquete UI se compilen.
+> Nota sobre Uniwind/Tailwind v4 en monorepo: En Tailwind CSS v4, la configuración vive en CSS y las rutas de escaneo externas se declaran en el archivo `global.css` de la aplicación mediante la directiva `@source` (por ejemplo, `@source '../../packages/ui';`). El archivo `metro.config.js` añade la raíz del monorepo a `watchFolders` para que Metro observe y compile las clases detectadas en el paquete UI.
 
 ## Clonar para una nueva app (granja)
 
@@ -74,8 +70,8 @@ igual en web y nativo.
    - `packages/core` → tus reglas/tipos de juego.
    - `packages/data` → tu dataset.
 3. **Reutilizá casi tal cual**:
-   - `packages/ui` (cambiá sólo la paleta del preset).
+   - `packages/ui` (cambiá sólo la paleta del preset en CSS).
    - `packages/backend` → el patrón salas/jugadores/votación es genérico para party games.
-   - `apps/mobile` config (Expo Router, NativeWind, Convex provider).
+   - `apps/mobile` config (Expo Router, Uniwind, Convex provider).
    - `apps/desktop` (Tauri) — sólo cambiás `productName`/`identifier`.
 4. Cambiá `identifier`/`bundleIdentifier`/`package` en `app.json` y `tauri.conf.json`.

@@ -7,7 +7,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaListener, SafeAreaProvider } from 'react-native-safe-area-context';
+import { Uniwind } from 'uniwind';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toast } from '@/components/Toast';
 import { convex } from '@/lib/convex';
@@ -29,8 +30,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ErrorBoundary>
-        <ConvexProvider client={convex}>
+        <SafeAreaListener onChange={({ insets }) => { Uniwind.updateInsets(insets); }}>
+          <ErrorBoundary>
+          <ConvexProvider client={convex}>
           <StatusBar style="light" />
           <Stack
             screenOptions={{
@@ -51,8 +53,9 @@ export default function RootLayout() {
           </Stack>
           {/* Toast global por encima de todo */}
           <Toast />
-        </ConvexProvider>
-        </ErrorBoundary>
+          </ConvexProvider>
+          </ErrorBoundary>
+        </SafeAreaListener>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -1,4 +1,5 @@
 import { Text as RNText, type TextProps } from 'react-native';
+import { twMerge } from 'tailwind-merge';
 
 type Variant = 'display' | 'title' | 'body' | 'muted' | 'label';
 
@@ -16,5 +17,5 @@ export interface ThemedTextProps extends TextProps {
 }
 
 export function Text({ variant = 'body', className = '', ...props }: ThemedTextProps) {
-  return <RNText className={`${styles[variant]} ${className}`} {...props} />;
+  return <RNText className={twMerge(styles[variant], className)} {...props} />;
 }

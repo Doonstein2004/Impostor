@@ -5,5 +5,5 @@
     "lib": ["ESNext", "DOM"],
     "noEmit": true
   },
-  "include": ["src/**/*", "tailwind-preset.js", "nativewind-env.d.ts"]
+  "include": ["src/**/*"]
 }

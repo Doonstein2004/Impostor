@@ -19,9 +19,10 @@ Contiene reglas de trabajo, decisiones de arquitectura y el historial de cambios
 
 | Capa | Tecnología |
 |------|-----------|
-| Frontend | Expo SDK 52 + Expo Router + React Native Web |
-| Estilos | NativeWind v4.1.23 (Tailwind para RN) |
-| Animaciones | react-native-reanimated v3.16 |
+| Frontend | Expo SDK 56 + Expo Router + React Native Web 0.21 |
+| React | React 19.2.7 + React Native 0.86.0 |
+| Estilos | Uniwind v1.9.0 (Tailwind 4 para RN) + tailwind-merge |
+| Animaciones | react-native-reanimated v4.5.0 + react-native-worklets v0.10.0 |
 | Backend | Convex (reactive DB + mutations/queries) |
 | Desktop | Tauri v2 |
 | Monorepo | pnpm workspaces + Turborepo |
@@ -83,15 +84,12 @@ EXPO_PUBLIC_CONVEX_URL=https://curious-sheep-977.convex.cloud
     $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
     ```
 
-- **Kotlin 1.9.25** requerido por `expo-modules-core` (Compose Compiler 1.5.15).
-  - Fix 1 en `apps/mobile/android/gradle.properties`:
+- **Kotlin 2.0.21** requerido por RN 0.86 + New Architecture (antes 1.9.25 para SDK 52).
+  - Seteado en `app.json` vía plugin `expo-build-properties`:
+    ```json
+    { "android": { "kotlinVersion": "2.0.21" } }
     ```
-    android.kotlinVersion=1.9.25
-    ```
-  - Fix 2 en `apps/mobile/android/build.gradle` — classpath explícito (sin fix la BOM de RN fuerza 1.9.24):
-    ```groovy
-    classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}")
-    ```
+  - Ya no hace falta el classpath explícito en `build.gradle` (expo-build-properties lo maneja).
 
 ### Script de build: `scripts/build-android.ps1`
 
@@ -287,6 +285,67 @@ pnpm --filter @impostor/mobile run export
   - Sin estos datos el modo audio muestra "Audio no configurado" (no rompe nada).
 
 ## Historial de cambios importantes
+
+### 2026-06-29 (tanda 17) — Expo SDK 56, Uniwind, SEO, QR y performance
+
+- **Migración Expo SDK 52 → 56** (React 18 → 19.2.7, RN 0.76 → 0.86, expo-router 4 → 56):
+  - Todos los paquetes `expo-*` actualizados a versiones `~56.0.x`.
+  - `react-native-reanimated` 3.x → 4.5.0 + nueva dep `react-native-worklets ~0.10.0`.
+  - `react-native-safe-area-context` 4.12 → 5.8, `react-native-screens` 4.1 → 4.25.
+  - `react-native-web` 0.19 → 0.21, `react-native-gesture-handler` 2.x → 3.x.
+  - `@types/react` 18.x → 19.2.x. Kotlin Android: 1.9.25 → 2.0.21.
+
+- **Migración NativeWind → Uniwind v1.9.0** (Tailwind 3 → Tailwind 4 CSS-first):
+  - `tailwind.config.js` eliminado → `@theme {}` block en `global.css`.
+  - `withNativeWind` → `withUniwindConfig` en metro.config.js.
+  - Babel: eliminado el preset `nativewind/babel`, conservado solo `react-native-reanimated/plugin`
+    (en v4 este plugin re-exporta `react-native-worklets/plugin` internamente).
+  - `SafeAreaListener` + `Uniwind.updateInsets` en `_layout.tsx` para forwarding de insets.
+  - **Fix bug Uniwind 1.9.0**: el `webResolver` del plugin metro intercepta cualquier import de
+    `createOrderedCSSStyleSheet` desde react-native-web y lo redirige a
+    `uniwind/components/createOrderedCSSStyleSheet`, pero ese archivo no existía en el paquete.
+    Se crearon los tres archivos faltantes (native `.tsx`, ESM `.js`, CJS `.js`) con un simple
+    re-export de la implementación original de react-native-web. El script `scripts/patch-uniwind.js`
+    (corrido vía `postinstall` raíz) los regenera tras cada `pnpm install`.
+
+- **tailwind-merge** en todos los componentes de `packages/ui` (Button, Card, Badge, Text):
+  - Permite que las clases pasadas por `className` overrideen las clases base sin conflictos.
+
+- **React.lazy + Suspense para AudioRoom** (code-split de ~400 KB de LiveKit):
+  - `const AudioRoom = lazy(() => import('@/components/AudioRoom'))` en `room/[code].tsx`.
+  - Solo se descarga el bundle de audio si el modo de la sala es `'audio'`.
+
+- **Selectores granulares Zustand** (`useShallow`):
+  - Todos los 15 usos de `useSession()` migrados a selectores específicos para evitar
+    re-renders innecesarios cuando cambia cualquier campo del store.
+
+- **Validación de longitud en Convex** (server-side):
+  - `rooms.updateProfile`: nombre 2–20 chars, color max 20.
+  - `rooms.updatePassword`: max 50 chars.
+  - `tournaments.create`: nombre torneo max 50, nombre equipo max 30.
+  - `game.submitImpostorGuess`: respuesta max 100 chars.
+
+- **Haptic feedback** (`apps/mobile/src/lib/useHaptics.ts`):
+  - Dynamic import de `expo-haptics` solo en native (guard `Platform.OS !== 'web'`).
+  - Integrado en: voto (`Haptics.light`), envío de pista (`Haptics.light`),
+    inicio de turno (`Haptics.medium`), reveal (`Haptics.success`/`heavy`).
+
+- **Memoización en GameRound** (`React.memo` + `useCallback`):
+  - `PokerCard` (144 líneas) envuelto en `memo()`.
+  - `handleSubmit` y `handleDeclaration` con `useCallback` para deps exactas.
+
+- **QR de invitación en Lobby**:
+  - Botón "🔲 Mostrar QR" en la card de código de sala.
+  - Modal con `react-native-qrcode-svg` (220px, fondo blanco) sobre fondo oscuro semitransparente.
+  - URL del QR: `buildJoinUrl(room.code)` (link de invitación ya existente).
+
+- **SEO en `app/+html.tsx`**:
+  - `<title>`, `<meta name="description">`, canonical URL.
+  - OpenGraph completo (og:title, og:description, og:image 1200×630, og:url, og:locale).
+  - Twitter Card `summary_large_image`.
+  - JSON-LD `WebApplication` con schema.org.
+  - `<link rel="preconnect">` a fonts.gstatic.com.
+  - Kotlin en `app.json` actualizado a 2.0.21.
 
 ### 2026-06-26 (tanda 16) — Modo declaración, rol Cómplice, fix E2E y color picker compacto
 

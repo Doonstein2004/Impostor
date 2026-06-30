@@ -22,8 +22,10 @@ import * as Clipboard from 'expo-clipboard';
 import { useMutation } from 'convex/react';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, Share, TextInput, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, Share, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInLeft } from 'react-native-reanimated';
+import QRCode from 'react-native-qrcode-svg';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
 import { runAction } from '@/lib/useToast';
 import { TutorialButton } from './TutorialModal';
@@ -605,7 +607,17 @@ function ConfigTabs({
 // ─── Lobby ────────────────────────────────────────────────────────────────
 
 export function Lobby({ room }: { room: RoomView }) {
-  const { clientId, setLeaving, avatarColor, setAvatarColor, configPresets, savePreset, deletePreset } = useSession();
+  const { clientId, setLeaving, avatarColor, setAvatarColor, configPresets, savePreset, deletePreset } = useSession(
+    useShallow((s) => ({
+      clientId: s.clientId,
+      setLeaving: s.setLeaving,
+      avatarColor: s.avatarColor,
+      setAvatarColor: s.setAvatarColor,
+      configPresets: s.configPresets,
+      savePreset: s.savePreset,
+      deletePreset: s.deletePreset,
+    })),
+  );
   const [presetName, setPresetName] = useState('');
   const [namingPreset, setNamingPreset] = useState(false);
   const [showPasswordInput, setShowPasswordInput] = useState(false);
@@ -631,6 +643,7 @@ export function Lobby({ room }: { room: RoomView }) {
   const [startError, setStartError] = useState<string | null>(null);
   const [confirmInactive, setConfirmInactive] = useState(false);
   const [kickConfirm, setKickConfirm] = useState<string | null>(null);
+  const [showQR, setShowQR] = useState(false);
 
   const config = room.config;
   const usedIds = new Set(room.usedCharacterIds);
@@ -800,6 +813,7 @@ export function Lobby({ room }: { room: RoomView }) {
             <Button title="🔗 Copiar enlace" variant="secondary" onPress={copyLink} className="flex-1" />
             <Button title="📤 Compartir" variant="secondary" onPress={shareLink} className="flex-1" />
           </View>
+          <Button title="🔲 Mostrar QR" variant="secondary" onPress={() => setShowQR(true)} className="w-full mt-1" />
 
           {/* Contraseña */}
           {isHost ? (
@@ -1100,6 +1114,33 @@ export function Lobby({ room }: { room: RoomView }) {
         )}
         <Button title="Salir de la sala" variant="ghost" onPress={handleLeave} />
       </Animated.View>
+
+      {/* Modal QR */}
+      <Modal visible={showQR} transparent animationType="fade" onRequestClose={() => setShowQR(false)}>
+        <Pressable
+          className="flex-1 items-center justify-center bg-black/80"
+          onPress={() => setShowQR(false)}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()} className="items-center gap-4 p-6 rounded-3xl bg-surface-card border border-surface-border">
+            <Text variant="label" className="text-zinc-400 text-xs tracking-widest">ESCANEÁ PARA UNIRTE</Text>
+            <View className="p-3 rounded-2xl bg-white">
+              <QRCode
+                value={buildJoinUrl(room.code) ?? room.code}
+                size={220}
+                backgroundColor="white"
+                color="#000000"
+              />
+            </View>
+            <Text variant="display" className="text-pitch-400 text-3xl tracking-[8px]">{room.code}</Text>
+            <Pressable
+              onPress={() => setShowQR(false)}
+              className="px-6 py-2 rounded-full border border-surface-border"
+            >
+              <Text variant="label" className="text-zinc-400 text-sm">Cerrar</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }

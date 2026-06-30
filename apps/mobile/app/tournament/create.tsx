@@ -4,6 +4,7 @@ import { useMutation } from 'convex/react';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
 import { friendlyError } from '@/lib/errors';
 import { DEFAULT_CONFIG } from '@impostor/core';
@@ -20,7 +21,9 @@ type Team = { id: string; name: string; color: string };
 type PlayerEntry = { clientId: string; playerName: string; teamId: string };
 
 export default function CreateTournament() {
-  const { clientId, name } = useSession();
+  const { clientId, name } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, name: s.name })),
+  );
   const createTournament = useMutation(api.tournaments.create);
 
   const [tournamentName, setTournamentName] = useState('');

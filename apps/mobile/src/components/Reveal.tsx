@@ -11,7 +11,9 @@ import Animated, {
   ZoomIn,
 } from 'react-native-reanimated';
 import { router } from 'expo-router';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
+import { Haptics } from '@/lib/useHaptics';
 import { Platform } from 'react-native';
 import { useChatInset } from '@/lib/useChatDock';
 import { runAction } from '@/lib/useToast';
@@ -59,7 +61,9 @@ function RankingRow({ player, rank, prevScore, animated }: {
 }
 
 export function Reveal({ room }: { room: RoomView }) {
-  const { clientId, setLeaving } = useSession();
+  const { clientId, setLeaving } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, setLeaving: s.setLeaving })),
+  );
   const isHost = room.hostClientId === clientId;
   const chatInset = useChatInset(24);
   const data = useQuery(
@@ -78,8 +82,8 @@ export function Reveal({ room }: { room: RoomView }) {
     if (!data || soundPlayed[0]) return;
     soundPlayed[1](true);
     setTimeout(() => {
-      if (data.innocentsWin) play('innocentsWin');
-      else play('impostorWins');
+      if (data.innocentsWin) { play('innocentsWin'); Haptics.success(); }
+      else { play('impostorWins'); Haptics.heavy(); }
     }, 400);
   }, [data]);
 

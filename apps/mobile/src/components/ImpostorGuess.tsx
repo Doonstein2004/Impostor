@@ -18,7 +18,7 @@ function norm(s: string): string {
 }
 
 export function ImpostorGuess({ room }: { room: RoomView }) {
-  const { clientId } = useSession();
+  const clientId = useSession((s) => s.clientId);
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId!;
   const chatInset = useChatInset(24);

@@ -4,13 +4,26 @@ import { useMutation } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
 import { friendlyError } from '@/lib/errors';
 import { ColorPicker } from '@/components/ColorPicker';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 export default function Home() {
-  const { clientId, name, setName, avatarColor, setAvatarColor, currentRoomCode, setCurrentRoomCode, notice, setNotice } = useSession();
+  const { clientId, name, setName, avatarColor, setAvatarColor, currentRoomCode, setCurrentRoomCode, notice, setNotice } = useSession(
+    useShallow((s) => ({
+      clientId: s.clientId,
+      name: s.name,
+      setName: s.setName,
+      avatarColor: s.avatarColor,
+      setAvatarColor: s.setAvatarColor,
+      currentRoomCode: s.currentRoomCode,
+      setCurrentRoomCode: s.setCurrentRoomCode,
+      notice: s.notice,
+      setNotice: s.setNotice,
+    })),
+  );
   const createRoom = useMutation(api.rooms.create);
   const joinRoom = useMutation(api.rooms.join);
   const joinAsSpectator = useMutation(api.rooms.joinAsSpectator);

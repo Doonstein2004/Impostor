@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, type PressableProps, View } from 'react-native';
+import { twMerge } from 'tailwind-merge';
 import { Text } from './Text';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
@@ -30,14 +31,19 @@ export function Button({
   return (
     <Pressable
       disabled={isDisabled}
-      className={`h-12 flex-row items-center justify-center rounded-2xl px-5 ${v.container} ${isDisabled ? 'opacity-50' : ''} ${className}`}
+      className={twMerge(
+        'h-12 flex-row items-center justify-center rounded-2xl px-5',
+        v.container,
+        isDisabled ? 'opacity-50' : '',
+        className,
+      )}
       {...props}
     >
       {loading ? (
         <ActivityIndicator color="#fff" />
       ) : (
         <View className="flex-row items-center gap-2">
-          <Text className={`text-base font-display ${v.label}`}>{title}</Text>
+          <Text className={twMerge('text-base font-display', v.label)}>{title}</Text>
         </View>
       )}
     </Pressable>

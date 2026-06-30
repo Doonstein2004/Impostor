@@ -1,6 +1,6 @@
-// Metro configurado para monorepo (pnpm) + NativeWind.
+// Metro configurado para monorepo (pnpm) + Uniwind (Tailwind 4).
 const { getDefaultConfig } = require('expo/metro-config');
-const { withNativeWind } = require('nativewind/metro');
+const { withUniwindConfig } = require('uniwind/metro');
 const path = require('path');
 
 const projectRoot = __dirname;
@@ -29,9 +29,25 @@ config.resolver.disableHierarchicalLookup = false;
 //    que apunta a convex/_generated). Necesario para resolver la API tipada de Convex.
 config.resolver.unstable_enablePackageExports = true;
 
-// 5. Priorizar la build CJS sobre la ESM. Sin esto, Metro elige la variante ESM de
-//    `convex` que usa `import.meta` y rompe en web ("Cannot use 'import.meta'").
-//    'default' siempre matchea como fallback, así que los subpaths siguen resolviendo.
-config.resolver.unstable_conditionNames = ['require', 'react-native', 'browser'];
+// 5. NO sobreescribimos unstable_conditionNames: Metro usa defaults por plataforma.
+//    - Web:    ['browser', 'require', 'import', 'default'] → unifire web ✅, convex CJS ✅
+//    - Native: ['react-native', 'require', 'default']      → unifire native ✅, convex CJS ✅
+//    Nota histórica: hubo un error "Cannot use 'import.meta'" de Convex que se intentó
+//    resolver con conditionNames = ['require', 'react-native', 'browser'], pero eso rompe
+//    la resolución de los componentes web de Unifire (todos quedan con fuente nativa en web).
+//    Con unstable_enablePackageExports = true (ya seteado), Convex elige CJS vía 'require'
+//    sin necesitar un override de conditionNames.
 
-module.exports = withNativeWind(config, { input: './global.css' });
+// Unifire's transformer computes cssPath as path.join(process.cwd(), cssEntryFile).
+// When Metro runs from the monorepo root (pnpm dev / turbo), process.cwd() != projectRoot,
+// so './global.css' would resolve to the wrong location and the CSS transformation would
+// silently skip, leaving UniwindStore empty and all className styles broken on native.
+// Fix: compute a CWD-relative path that always resolves to the correct absolute file.
+const cssAbsPath = path.resolve(projectRoot, 'global.css');
+const dtsAbsPath = path.resolve(projectRoot, 'src/uniwind-types.d.ts');
+
+// withUniwindConfig debe ser el wrapper más externo (requerimiento de Uniwind).
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: path.relative(process.cwd(), cssAbsPath),
+  dtsFile: path.relative(process.cwd(), dtsAbsPath),
+});

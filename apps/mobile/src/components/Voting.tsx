@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import Animated, { BounceIn, FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { router } from 'expo-router';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
+import { Haptics } from '@/lib/useHaptics';
 import { useCountdown } from '@/lib/useCountdown';
 import { useChatInset } from '@/lib/useChatDock';
 import { runAction } from '@/lib/useToast';
@@ -14,7 +16,9 @@ import { PlayerAvatar } from './PlayerAvatar';
 import type { RoomView } from './types';
 
 export function Voting({ room }: { room: RoomView }) {
-  const { clientId, setLeaving } = useSession();
+  const { clientId, setLeaving } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, setLeaving: s.setLeaving })),
+  );
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId;
   const chatInset = useChatInset(24);
@@ -126,6 +130,7 @@ export function Voting({ room }: { room: RoomView }) {
                 disabled={isMe || !roundId}
                 onPress={() => {
                   play('vote');
+                  Haptics.light();
                   roundId && runAction(
                     () => castVote({ roundId, voterClientId: clientId, targetClientId: p.clientId }),
                     'No se pudo registrar tu voto.',

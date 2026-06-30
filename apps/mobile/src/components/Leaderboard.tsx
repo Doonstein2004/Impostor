@@ -8,7 +8,7 @@ import { useSession } from '@/lib/session';
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 export function Leaderboard() {
-  const { clientId } = useSession();
+  const clientId = useSession((s) => s.clientId);
   const rows = useQuery(api.stats.top, { limit: 50 });
 
   if (rows === undefined) {

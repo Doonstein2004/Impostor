@@ -36,7 +36,10 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "meta": {
+        "themeColor": "#0b0f0e"
+      }
     },
     "plugins": [
       "expo-router",
@@ -45,7 +48,7 @@
         "expo-build-properties",
         {
           "android": {
-            "kotlinVersion": "1.9.25"
+            "kotlinVersion": "2.0.21"
           }
         }
       ],

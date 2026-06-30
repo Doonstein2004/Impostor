@@ -3,10 +3,14 @@ import { Screen, Text } from '@impostor/ui';
 
 import { useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { Suspense, lazy, useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import { AudioRoom } from '@/components/AudioRoom';
 import { GameChat } from '@/components/Chat';
+
+// AudioRoom arrastra livekit-client (~400 KB). Solo se carga si commMode === 'audio'.
+const AudioRoom = lazy(() =>
+  import('@/components/AudioRoom').then((m) => ({ default: m.AudioRoom })),
+);
 import { GameRound } from '@/components/GameRound';
 import { ImpostorGuess } from '@/components/ImpostorGuess';
 import { Lobby } from '@/components/Lobby';
@@ -15,13 +19,22 @@ import { SpectatorView } from '@/components/SpectatorView';
 import { TutorialModal } from '@/components/TutorialModal';
 import { Voting } from '@/components/Voting';
 import { SkeletonRoomLoading } from '@/components/Skeleton';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
 import { usePresence } from '@/lib/usePresence';
 import { toast } from '@/lib/useToast';
 
 export default function RoomScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
-  const { clientId, setCurrentRoomCode, leaving, setLeaving, setNotice } = useSession();
+  const { clientId, setCurrentRoomCode, leaving, setLeaving, setNotice } = useSession(
+    useShallow((s) => ({
+      clientId: s.clientId,
+      setCurrentRoomCode: s.setCurrentRoomCode,
+      leaving: s.leaving,
+      setLeaving: s.setLeaving,
+      setNotice: s.setNotice,
+    })),
+  );
   const room = useQuery(api.rooms.get, code ? { code } : 'skip');
 
   // Guarda el código en sesión para poder volver tras recargar
@@ -108,7 +121,9 @@ export default function RoomScreen() {
       {(room.status === 'reveal' || room.status === 'finished') && <Reveal room={room} />}
       {/* Comunicación de sala (todas las fases salvo lobby): audio o chat de texto */}
       {room.status !== 'lobby' &&
-        (room.config.commMode === 'audio' ? <AudioRoom room={room} /> : <GameChat room={room} />)}
+        (room.config.commMode === 'audio'
+          ? <Suspense fallback={null}><AudioRoom room={room} /></Suspense>
+          : <GameChat room={room} />)}
     </>
   );
 }

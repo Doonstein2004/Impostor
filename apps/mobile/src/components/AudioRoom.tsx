@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { AudioSession, registerGlobals } from '@livekit/react-native';
 import { Room, RoomEvent } from 'livekit-client';
 import { friendlyError } from '@/lib/errors';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
 import { useChatDock } from '@/lib/useChatDock';
 import { toast } from '@/lib/useToast';
@@ -35,7 +36,9 @@ type Status = 'connecting' | 'connected' | 'error' | 'unconfigured';
  *  - No hay lockeo de autoplay (Android/iOS no lo tienen)
  */
 export function AudioRoom({ room }: { room: RoomView }) {
-  const { clientId, name } = useSession();
+  const { clientId, name } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, name: s.name })),
+  );
   const getToken = useAction(api.livekit.token);
   const setDockHeight = useChatDock((s) => s.setHeight);
 

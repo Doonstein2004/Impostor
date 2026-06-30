@@ -410,6 +410,7 @@ export const submitImpostorGuess = mutation({
       s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
     const trimmed = guess.trim();
+    if (trimmed.length > 100) throw new Error('La respuesta es demasiado larga (máx. 100 caracteres)');
     const impostorWonGuess =
       trimmed.length > 0 &&
       (norm(trimmed) === norm(secret?.name ?? '') ||

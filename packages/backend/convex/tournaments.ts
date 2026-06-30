@@ -114,8 +114,14 @@ export const create = mutation({
     config: gameConfigValidator,
   },
   handler: async (ctx, args) => {
+    const tournamentName = args.name.trim();
+    if (!tournamentName || tournamentName.length > 50) throw new Error('El nombre del torneo debe tener entre 1 y 50 caracteres');
     if (args.teams.length < 2 || args.teams.length > 8) {
       throw new Error('Se necesitan entre 2 y 8 equipos');
+    }
+    for (const team of args.teams) {
+      const teamName = team.name.trim();
+      if (!teamName || teamName.length > 30) throw new Error('El nombre del equipo debe tener entre 1 y 30 caracteres');
     }
 
     const teamIds = args.teams.map(t => t.id);

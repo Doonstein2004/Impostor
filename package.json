@@ -19,7 +19,8 @@
     "convex:dev": "pnpm --filter @impostor/backend dev",
     "data:generate": "pnpm --filter @impostor/data generate",
     "sync": "node scripts/sync-workspace.js",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "postinstall": "node scripts/patch-uniwind.js"
   },
   "devDependencies": {
     "turbo": "^2.3.3",

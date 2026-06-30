@@ -1,7 +1,7 @@
 import { api } from '@impostor/backend/api';
 import { Button, Card, Screen, Text } from '@impostor/ui';
 import { useMutation, useQuery } from 'convex/react';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -27,7 +27,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { router } from 'expo-router';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
+import { Haptics } from '@/lib/useHaptics';
 import { useCountdown } from '@/lib/useCountdown';
 import { useChatInset } from '@/lib/useChatDock';
 import { runAction, toast } from '@/lib/useToast';
@@ -83,7 +85,7 @@ function ShotClock({ timeLeft, animatedProgress }: {
 
 // ─── Poker card ───────────────────────────────────────────────────────────
 
-function PokerCard({ card, speakerIndex }: { card: any; speakerIndex: number }) {
+const PokerCard = memo(function PokerCard({ card, speakerIndex }: { card: any; speakerIndex: number }) {
   // Empieza revelado — el jugador ve su personaje de inmediato
   const [revealed, setRevealed] = useState(true);
   const scaleX = useSharedValue(1);
@@ -224,7 +226,7 @@ function PokerCard({ card, speakerIndex }: { card: any; speakerIndex: number }) 
       </Pressable>
     </Animated.View>
   );
-}
+});
 
 // ─── Speaker spotlight ─────────────────────────────────────────────────────
 
@@ -645,7 +647,9 @@ const CluesFeed = memo(function CluesFeed({ clues, myClientId, currentTurn, play
 // ─── Main component ────────────────────────────────────────────────────────
 
 export function GameRound({ room }: { room: RoomView }) {
-  const { clientId, name, setLeaving } = useSession();
+  const { clientId, name, setLeaving } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, name: s.name, setLeaving: s.setLeaving })),
+  );
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId!;
   const chatInset = useChatInset(24);
@@ -696,6 +700,7 @@ export function GameRound({ room }: { room: RoomView }) {
   useEffect(() => {
     if (isMyTurn && currentSpeakerId !== prevSpeakerId.current) {
       play('myTurn');
+      Haptics.medium();
     }
     prevSpeakerId.current = currentSpeakerId;
   }, [currentSpeakerId, isMyTurn]);
@@ -740,21 +745,22 @@ export function GameRound({ room }: { room: RoomView }) {
     inputRef.current?.clear();
   }, [currentSpeakerId]);
 
-  async function handleSubmit() {
+  const handleSubmit = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
     setBusy(true);
     try {
       await submitClue({ roundId, clientId, playerName: name, text: trimmed });
+      Haptics.light();
       setText('');
     } catch (e) {
       toast.error(friendlyError(e, 'No se pudo enviar tu pista (quizás cambió el turno).'));
     } finally {
       setBusy(false);
     }
-  }
+  }, [text, busy, submitClue, roundId, clientId, name]);
 
-  async function handleDeclaration(value: '✅ Lo conozco' | '❌ No lo conozco') {
+  const handleDeclaration = useCallback(async (value: '✅ Lo conozco' | '❌ No lo conozco') => {
     if (busy) return;
     setBusy(true);
     try {
@@ -764,7 +770,7 @@ export function GameRound({ room }: { room: RoomView }) {
     } finally {
       setBusy(false);
     }
-  }
+  }, [busy, submitClue, roundId, clientId, name]);
 
   if (card === undefined || round === undefined || clues === undefined) {
     return (

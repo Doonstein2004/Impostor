@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
 import { useChatDock } from '@/lib/useChatDock';
 import { toast } from '@/lib/useToast';
@@ -31,7 +32,9 @@ const SIDE_MODE_MIN_WIDTH = 820;
  *   `useChatDock` y las pantallas reservan ese espacio (useChatInset).
  */
 export function GameChat({ room }: { room: RoomView }) {
-  const { clientId, name } = useSession();
+  const { clientId, name } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, name: s.name })),
+  );
   const messages = useQuery(api.messages.listByRoom, { roomId: room._id });
   const send = useMutation(api.messages.send);
 

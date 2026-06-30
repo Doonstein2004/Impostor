@@ -16,11 +16,12 @@ reutilizable para futuras apps.
 | Monorepo        | **pnpm workspaces** + **Turborepo**          |
 | App (Web/iOS/Android) | **Expo** (React Native + RN Web) + **Expo Router** |
 | Desktop         | **Tauri v2** (envuelve el build web)         |
-| Estilos / UI    | **NativeWind v4** (Tailwind) + paquete `@impostor/ui` |
+| Estilos / UI    | **Uniwind** (Tailwind v4) + paquete `@impostor/ui`    |
 | Backend/Realtime| **Convex** (DB reactiva + funciones)         |
 | Estado local    | **Zustand**                                  |
 | Datos jugadores | Dataset **curado y bundleado** (`@impostor/data`) |
 | Audio (futuro)  | LiveKit — ver [`docs/ROADMAP.md`](docs/ROADMAP.md) |
+
 
 ---
 
@@ -35,7 +36,8 @@ impostor/
 │   ├── core/        # Lógica de juego pura + tipos (sin UI, sin backend) — testeada
 │   ├── data/        # Dataset curado de jugadores y DTs + generador
 │   ├── backend/     # Convex: schema + funciones (salas, partida, votación)
-│   └── ui/          # Componentes cross-platform (NativeWind) + preset de diseño
+│   └── ui/          # Componentes cross-platform (Uniwind) + preset de diseño
+
 ├── docs/            # Documentación de arquitectura, datos y roadmap
 └── turbo.json, pnpm-workspace.yaml, tsconfig.base.json
 ```

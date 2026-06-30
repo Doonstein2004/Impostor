@@ -5,6 +5,7 @@ import { Room, RoomEvent, Track, type RemoteTrack } from 'livekit-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { friendlyError } from '@/lib/errors';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
 import { useChatDock } from '@/lib/useChatDock';
 import { toast } from '@/lib/useToast';
@@ -23,7 +24,9 @@ type Status = 'connecting' | 'connected' | 'error' | 'unconfigured';
  * espacio como hace el chat de texto.
  */
 export function AudioRoom({ room }: { room: RoomView }) {
-  const { clientId, name } = useSession();
+  const { clientId, name } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, name: s.name })),
+  );
   const getToken = useAction(api.livekit.token);
   const setDockHeight = useChatDock((s) => s.setHeight);
 

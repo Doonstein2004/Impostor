@@ -2,6 +2,7 @@ import { Text } from '@impostor/ui';
 import { useState } from 'react';
 import { Modal, Pressable, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeInRight, FadeOutLeft } from 'react-native-reanimated';
+import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
 
 const SLIDES = [
@@ -33,7 +34,9 @@ const SLIDES = [
 ];
 
 export function TutorialModal() {
-  const { tutorialSeen, setTutorialSeen } = useSession();
+  const { tutorialSeen, setTutorialSeen } = useSession(
+    useShallow((s) => ({ tutorialSeen: s.tutorialSeen, setTutorialSeen: s.setTutorialSeen })),
+  );
   const [visible, setVisible] = useState(!tutorialSeen);
   const [slide, setSlide] = useState(0);
   const [key, setKey] = useState(0);

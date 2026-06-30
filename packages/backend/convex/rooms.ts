@@ -222,7 +222,12 @@ export const updateProfile = mutation({
       .first();
     if (!player) return;
     const patch: { name?: string; color?: string } = {};
-    if (name && name.trim().length >= 2) patch.name = name.trim();
+    if (name !== undefined) {
+      const trimmedName = name.trim();
+      if (trimmedName.length < 2) throw new Error('El nombre debe tener al menos 2 caracteres');
+      if (trimmedName.length > MAX_NAME_LEN) throw new Error(`El nombre es muy largo (máx. ${MAX_NAME_LEN} caracteres)`);
+      patch.name = trimmedName;
+    }
     if (color) patch.color = color;
     if (Object.keys(patch).length > 0) await ctx.db.patch(player._id, patch);
   },
@@ -315,6 +320,7 @@ export const updatePassword = mutation({
     if (room.hostClientId !== clientId) throw new Error('Solo el host puede cambiar la contraseña');
     if (room.status !== 'lobby') throw new Error('No se puede cambiar en partida');
     const trimmed = password?.trim() ?? '';
+    if (trimmed.length > 50) throw new Error('La contraseña es muy larga (máx. 50 caracteres)');
     await ctx.db.patch(roomId, { password: trimmed || '' });
   },
 });

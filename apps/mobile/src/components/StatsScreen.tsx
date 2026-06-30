@@ -26,7 +26,7 @@ function WinRateBar({ rate, color }: { rate: number; color: string }) {
 }
 
 export function StatsScreen() {
-  const { clientId } = useSession();
+  const clientId = useSession((s) => s.clientId);
   const stats = useQuery(api.stats.get, { clientId });
 
   if (stats === undefined) {

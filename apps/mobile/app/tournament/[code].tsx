@@ -124,7 +124,7 @@ function MatchCard({
 
 export default function TournamentBracket() {
   const { code } = useLocalSearchParams<{ code: string }>();
-  const { clientId } = useSession();
+  const clientId = useSession((s) => s.clientId);
   const createRoom = useMutation(api.rooms.create);
   const setMatchRoom = useMutation(api.tournaments.setMatchRoom);
   const recordResult = useMutation(api.tournaments.recordMatchResult);

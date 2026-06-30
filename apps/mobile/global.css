@@ -1,10 +1,45 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'uniwind';
 
-/* ─── Scrollbar con estilo (solo web) ──────────────────────────────────────
-   Fina, redondeada y oscura; el thumb se pone dorado al pasar el mouse.
-   Reemplaza la barra gris "de sistema" por algo acorde al juego. */
+@source '../../packages/ui';
+
+/* ─── Tema del juego ──────────────────────────────────────────────────────────
+   Equivale al antiguo tailwind.config.js + tailwind-preset.js.
+   En Tailwind 4 toda la config vive en CSS. */
+@theme {
+  /* Verde cancha */
+  --color-pitch-50: #ecfdf5;
+  --color-pitch-100: #d1fae5;
+  --color-pitch-400: #34d399;
+  --color-pitch-500: #10b981;
+  --color-pitch-600: #059669;
+  --color-pitch-700: #047857;
+  --color-pitch-900: #064e3b;
+
+  /* Rojo impostor */
+  --color-impostor-400: #f87171;
+  --color-impostor-500: #ef4444;
+  --color-impostor-600: #dc2626;
+
+  /* Dorado */
+  --color-gold-300: #fde68a;
+  --color-gold-400: #fbbf24;
+  --color-gold-500: #f59e0b;
+  --color-gold-600: #d97706;
+
+  /* Fondos oscuros */
+  --color-surface: #0b0f0e;
+  --color-surface-soft: #141a18;
+  --color-surface-card: #1b2421;
+  --color-surface-border: #27332e;
+
+  /* Tipografías — RN solo acepta un nombre por familia (sin fallbacks) */
+  --font-display: Inter_700Bold;
+  --font-body: Inter_400Regular;
+}
+
+/* ─── Scrollbar con estilo (solo web) ─────────────────────────────────────────
+   Fina, redondeada y oscura; el thumb se pone dorado al pasar el mouse. */
 
 /* Firefox */
 * {
