@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://impostor-futbol.vercel.app/sitemap.xml

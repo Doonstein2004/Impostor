@@ -17,5 +17,17 @@ export interface ThemedTextProps extends TextProps {
 }
 
 export function Text({ variant = 'body', className = '', ...props }: ThemedTextProps) {
-  return <RNText className={twMerge(styles[variant], className)} {...props} />;
+  const extraProps: Record<string, any> = {};
+  if (variant === 'display') {
+    extraProps.role = 'heading';
+    extraProps['aria-level'] = 1;
+  }
+  return (
+    <RNText
+      className={twMerge(styles[variant], className)}
+      {...props}
+      {...extraProps}
+    />
+  );
 }
+

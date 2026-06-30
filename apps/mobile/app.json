@@ -36,7 +36,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "single",
+      "output": "static",
       "meta": {
         "themeColor": "#0b0f0e"
       }
