@@ -5,7 +5,7 @@ import { ConvexProvider } from 'convex/react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaListener, SafeAreaProvider } from 'react-native-safe-area-context';
 import { Uniwind } from 'uniwind';
@@ -23,7 +23,9 @@ export default function RootLayout() {
     useSession.persist.rehydrate();
   }, []);
 
-  if (!fontsLoaded || !hydrated) {
+  const isReady = hydrated && (Platform.OS === 'web' || fontsLoaded);
+
+  if (!isReady) {
     return <View className="flex-1 bg-surface" />;
   }
 
