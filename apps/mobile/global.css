@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'uniwind';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
 
 @source '../../packages/ui';
 
@@ -72,14 +73,14 @@
    Cargadas con font-display: swap para renderizar texto inmediatamente sin bloquear. */
 @font-face {
   font-family: 'Inter_400Regular';
-  src: local('Inter Regular'), local('Inter-Regular'), url('https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_fvQtMwCp5SRy25.woff2') format('woff2');
+  src: local('Inter Regular'), local('Inter-Regular'), local('Inter');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Inter_700Bold';
-  src: local('Inter Bold'), local('Inter-Bold'), url('https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_fvQtMwCp5SRy25.woff2') format('woff2');
+  src: local('Inter Bold'), local('Inter-Bold'), local('Inter');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
