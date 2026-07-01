@@ -7,9 +7,11 @@
     "scheme": "impostor",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
     "splash": {
       "backgroundColor": "#0b0f0e",
-      "resizeMode": "contain"
+      "resizeMode": "contain",
+      "image": "./assets/splash-icon.png"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,6 +22,12 @@
     },
     "android": {
       "package": "com.doonbro.impostorfutbol",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0b0f0e"
+      },
+      "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -37,12 +45,13 @@
     "web": {
       "bundler": "metro",
       "output": "static",
+      "favicon": "./public/favicon.png",
       "meta": {
         "themeColor": "#0b0f0e"
       }
     },
     "plugins": [
-      "expo-router",
+      ["expo-router", { "asyncRoutes": { "web": "production", "default": "development" } }],
       "expo-font",
       [
         "expo-build-properties",

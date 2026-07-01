@@ -1,7 +1,8 @@
 {
   "cli": {
     "version": ">= 12.0.0",
-    "requireCommit": false
+    "requireCommit": false,
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -31,6 +32,7 @@
       }
     },
     "production": {
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
       },

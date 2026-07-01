@@ -8,3 +8,4 @@ export { Screen } from './Screen';
 export type { ScreenProps } from './Screen';
 export { Badge } from './Badge';
 export type { BadgeProps } from './Badge';
+export { PrivacyPolicy } from './PrivacyPolicy';
