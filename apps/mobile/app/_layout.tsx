@@ -51,7 +51,7 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_700Bold });
   const hydrated = useSession((s) => s.hydrated);
 
   useEffect(() => {
@@ -59,7 +59,9 @@ export default function RootLayout() {
     useSession.persist.rehydrate();
   }, []);
 
-  const isReady = hydrated && (Platform.OS === 'web' || fontsLoaded);
+  // Si la carga de fuentes falla (ej. build nativo release), no bloquear la
+  // app para siempre en la pantalla de carga — seguir con la fuente de sistema.
+  const isReady = hydrated && (Platform.OS === 'web' || fontsLoaded || !!fontError);
 
   if (!isReady) {
     return <View className="flex-1 bg-surface" />;
