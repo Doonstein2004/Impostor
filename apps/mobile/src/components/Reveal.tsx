@@ -61,8 +61,8 @@ function RankingRow({ player, rank, prevScore, animated }: {
 }
 
 export function Reveal({ room }: { room: RoomView }) {
-  const { clientId, setLeaving } = useSession(
-    useShallow((s) => ({ clientId: s.clientId, setLeaving: s.setLeaving })),
+  const { clientId, sessionToken, setLeaving } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, sessionToken: s.sessionToken, setLeaving: s.setLeaving })),
   );
   const isHost = room.hostClientId === clientId;
   const chatInset = useChatInset(24);
@@ -396,7 +396,7 @@ export function Reveal({ room }: { room: RoomView }) {
               <Button
                 title="🔄 Nueva sesión"
                 variant="secondary"
-                onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId, newSession: true }), 'No se pudo iniciar una nueva sesión.')}
+                onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId, sessionToken: sessionToken ?? '', newSession: true }), 'No se pudo iniciar una nueva sesión.')}
               />
             )}
           </View>
@@ -404,12 +404,12 @@ export function Reveal({ room }: { room: RoomView }) {
           <View className="gap-2">
             <Button
               title="⚡ Revancha inmediata"
-              onPress={() => runAction(() => quickRematch({ roomId: room._id, clientId }), 'No se pudo iniciar la revancha.')}
+              onPress={() => runAction(() => quickRematch({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' }), 'No se pudo iniciar la revancha.')}
             />
             <Button
               title={`⚙️ Volver al lobby`}
               variant="secondary"
-              onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId }), 'No se pudo volver al lobby.')}
+              onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' }), 'No se pudo volver al lobby.')}
             />
           </View>
         ) : (

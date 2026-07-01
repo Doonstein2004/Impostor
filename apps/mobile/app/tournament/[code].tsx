@@ -164,6 +164,7 @@ export default function TournamentBracket() {
     try {
       const { name } = useSession.getState();
       const res = await createRoom({ clientId, name: name || 'Host', color: undefined });
+      useSession.getState().setSessionToken(res.sessionToken);
       await setMatchRoom({
         tournamentId: tournament._id,
         matchId,

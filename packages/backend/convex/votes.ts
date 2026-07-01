@@ -1,21 +1,22 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import { assertOwnsIdentity } from './auth';
 
 /** Registra (o cambia) el voto de un jugador en la ronda activa. */
 export const cast = mutation({
-  args: { roundId: v.id('rounds'), voterClientId: v.string(), targetClientId: v.string() },
-  handler: async (ctx, { roundId, voterClientId, targetClientId }) => {
+  args: {
+    roundId: v.id('rounds'),
+    voterClientId: v.string(),
+    voterSessionToken: v.string(),
+    targetClientId: v.string(),
+  },
+  handler: async (ctx, { roundId, voterClientId, voterSessionToken, targetClientId }) => {
     const round = await ctx.db.get(roundId);
     if (!round || round.status !== 'voting') throw new Error('La votación no está abierta');
 
     // Solo jugadores activos (no espectadores) pueden votar
-    const voter = await ctx.db
-      .query('players')
-      .withIndex('by_room_client', (q) =>
-        q.eq('roomId', round.roomId).eq('clientId', voterClientId),
-      )
-      .first();
-    if (!voter || voter.isSpectator) throw new Error('No podés votar en esta partida');
+    const voter = await assertOwnsIdentity(ctx, round.roomId, voterClientId, voterSessionToken);
+    if (voter.isSpectator) throw new Error('No podés votar en esta partida');
 
     // El objetivo debe ser un jugador activo de esta sala (no un espectador ni un extraño)
     const target = await ctx.db

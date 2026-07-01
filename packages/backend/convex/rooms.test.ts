@@ -13,11 +13,7 @@ async function createRoom(
   t: ReturnType<typeof convexTest>,
   opts: { password?: string; maxPlayers?: number } = {},
 ) {
-  const config = opts.maxPlayers !== undefined
-    ? { ...defaultConfig, maxPlayers: opts.maxPlayers }
-    : defaultConfig;
-
-  const { code } = await t.mutation(api.rooms.create, {
+  const { code, sessionToken } = await t.mutation(api.rooms.create, {
     clientId: 'host-1',
     name: 'Host',
     ...(opts.password ? { password: opts.password } : {}),
@@ -30,12 +26,13 @@ async function createRoom(
       await t.mutation(api.rooms.updateConfig, {
         roomId: room._id,
         clientId: 'host-1',
+        sessionToken,
         config: { ...defaultConfig, maxPlayers: opts.maxPlayers },
       });
     }
   }
 
-  return code;
+  return { code, hostSessionToken: sessionToken };
 }
 
 const defaultConfig = {
@@ -107,7 +104,7 @@ describe('rooms.create', () => {
 describe('rooms.join — contraseña', () => {
   it('rechaza al jugador sin contraseña cuando la sala tiene una', async () => {
     const t = convexTest(schema, modules);
-    const code = await createRoom(t, { password: 'secreto' });
+    const { code } = await createRoom(t, { password: 'secreto' });
 
     await expect(
       t.mutation(api.rooms.join, {
@@ -120,7 +117,7 @@ describe('rooms.join — contraseña', () => {
 
   it('rechaza con contraseña incorrecta', async () => {
     const t = convexTest(schema, modules);
-    const code = await createRoom(t, { password: 'secreto' });
+    const { code } = await createRoom(t, { password: 'secreto' });
 
     await expect(
       t.mutation(api.rooms.join, {
@@ -134,7 +131,7 @@ describe('rooms.join — contraseña', () => {
 
   it('permite entrar con la contraseña correcta', async () => {
     const t = convexTest(schema, modules);
-    const code = await createRoom(t, { password: 'secreto' });
+    const { code } = await createRoom(t, { password: 'secreto' });
 
     const result = await t.mutation(api.rooms.join, {
       code,
@@ -147,7 +144,7 @@ describe('rooms.join — contraseña', () => {
 
   it('el jugador ya presente no necesita contraseña (reconexión)', async () => {
     const t = convexTest(schema, modules);
-    const code = await createRoom(t, { password: 'secreto' });
+    const { code } = await createRoom(t, { password: 'secreto' });
 
     // Primera entrada con contraseña.
     await t.mutation(api.rooms.join, {
@@ -173,7 +170,7 @@ describe('rooms.join — contraseña', () => {
 describe('rooms.join — maxPlayers', () => {
   it('rechaza al jugador N+1 cuando la sala está llena', async () => {
     const t = convexTest(schema, modules);
-    const code = await createRoom(t, { maxPlayers: 2 });
+    const { code } = await createRoom(t, { maxPlayers: 2 });
 
     // Host ya ocupa el primer lugar; el segundo jugador llena la sala.
     await t.mutation(api.rooms.join, {
@@ -190,7 +187,7 @@ describe('rooms.join — maxPlayers', () => {
 
   it('un espectador no ocupa lugar de jugador', async () => {
     const t = convexTest(schema, modules);
-    const code = await createRoom(t, { maxPlayers: 2 });
+    const { code } = await createRoom(t, { maxPlayers: 2 });
 
     // Llenar con 2 jugadores (host + player-2).
     await t.mutation(api.rooms.join, {
@@ -211,12 +208,13 @@ describe('rooms.join — maxPlayers', () => {
 describe('rooms.updatePassword', () => {
   it('host puede agregar contraseña', async () => {
     const t = convexTest(schema, modules);
-    const code = await createRoom(t);
+    const { code, hostSessionToken } = await createRoom(t);
     const room = await t.query(api.rooms.get, { code });
 
     await t.mutation(api.rooms.updatePassword, {
       roomId: room!._id,
       clientId: 'host-1',
+      sessionToken: hostSessionToken,
       password: 'nueva',
     });
 
@@ -226,12 +224,13 @@ describe('rooms.updatePassword', () => {
 
   it('host puede borrar la contraseña', async () => {
     const t = convexTest(schema, modules);
-    const code = await createRoom(t, { password: 'original' });
+    const { code, hostSessionToken } = await createRoom(t, { password: 'original' });
     const room = await t.query(api.rooms.get, { code });
 
     await t.mutation(api.rooms.updatePassword, {
       roomId: room!._id,
       clientId: 'host-1',
+      sessionToken: hostSessionToken,
       password: '',
     });
 
@@ -241,10 +240,10 @@ describe('rooms.updatePassword', () => {
 
   it('un no-host no puede cambiar la contraseña', async () => {
     const t = convexTest(schema, modules);
-    const code = await createRoom(t);
+    const { code } = await createRoom(t);
     const room = await t.query(api.rooms.get, { code });
 
-    await t.mutation(api.rooms.join, {
+    const { sessionToken: playerToken } = await t.mutation(api.rooms.join, {
       code, clientId: 'player-1', name: 'P1',
     });
 
@@ -252,6 +251,7 @@ describe('rooms.updatePassword', () => {
       t.mutation(api.rooms.updatePassword, {
         roomId: room!._id,
         clientId: 'player-1',
+        sessionToken: playerToken ?? '',
         password: 'hack',
       }),
     ).rejects.toThrow('host');

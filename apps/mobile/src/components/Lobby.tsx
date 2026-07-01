@@ -607,9 +607,10 @@ function ConfigTabs({
 // ─── Lobby ────────────────────────────────────────────────────────────────
 
 export function Lobby({ room }: { room: RoomView }) {
-  const { clientId, setLeaving, avatarColor, setAvatarColor, configPresets, savePreset, deletePreset } = useSession(
+  const { clientId, sessionToken, setLeaving, avatarColor, setAvatarColor, configPresets, savePreset, deletePreset } = useSession(
     useShallow((s) => ({
       clientId: s.clientId,
+      sessionToken: s.sessionToken,
       setLeaving: s.setLeaving,
       avatarColor: s.avatarColor,
       setAvatarColor: s.setAvatarColor,
@@ -658,7 +659,7 @@ export function Lobby({ room }: { room: RoomView }) {
     if (!isHost) return;
     setStartError(null);
     await runAction(
-      () => updateConfig({ roomId: room._id, clientId, config: { ...config, ...partial } }),
+      () => updateConfig({ roomId: room._id, clientId, sessionToken: sessionToken ?? '', config: { ...config, ...partial } }),
       'No se pudo guardar la configuración.',
     );
   }
@@ -667,7 +668,7 @@ export function Lobby({ room }: { room: RoomView }) {
     if (!isHost) return;
     setStartError(null);
     await runAction(
-      () => updateConfig({ roomId: room._id, clientId, config: c }),
+      () => updateConfig({ roomId: room._id, clientId, sessionToken: sessionToken ?? '', config: c }),
       'No se pudo aplicar el modo.',
     );
   }
@@ -676,7 +677,7 @@ export function Lobby({ room }: { room: RoomView }) {
     if (!isHost) return;
     setStartError(null);
     await runAction(
-      () => updateConfig({ roomId: room._id, clientId, config: preset.config }),
+      () => updateConfig({ roomId: room._id, clientId, sessionToken: sessionToken ?? '', config: preset.config }),
       'No se pudo aplicar el preset.',
     );
   }
@@ -732,7 +733,7 @@ export function Lobby({ room }: { room: RoomView }) {
 
   async function doStart() {
     try {
-      await startRound({ roomId: room._id, clientId });
+      await startRound({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' });
     } catch (e) {
       setStartError(String(e instanceof Error ? e.message : e));
     }
@@ -741,7 +742,7 @@ export function Lobby({ room }: { room: RoomView }) {
   async function handleKick(targetClientId: string) {
     setKickConfirm(null);
     try {
-      await kickPlayer({ roomId: room._id, hostClientId: clientId, targetClientId });
+      await kickPlayer({ roomId: room._id, hostClientId: clientId, hostSessionToken: sessionToken ?? '', targetClientId });
       setConfirmInactive(false);
     } catch (e) {
       setStartError(String(e instanceof Error ? e.message : e));
@@ -757,7 +758,7 @@ export function Lobby({ room }: { room: RoomView }) {
   async function handleSetPassword(pw: string) {
     setShowPasswordInput(false);
     await runAction(
-      () => updatePasswordMutation({ roomId: room._id, clientId, password: pw }),
+      () => updatePasswordMutation({ roomId: room._id, clientId, sessionToken: sessionToken ?? '', password: pw }),
       'No se pudo cambiar la contraseña.',
     );
     setPasswordDraft('');

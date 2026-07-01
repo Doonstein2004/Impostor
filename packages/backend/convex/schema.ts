@@ -75,6 +75,15 @@ export default defineSchema({
     isSpectator: v.optional(v.boolean()),
     /** Clave del color de avatar elegido por el jugador (ver lib/avatars). */
     color: v.optional(v.string()),
+    /**
+     * Token secreto generado por el server al crear/unirse a la sala. Nunca se
+     * expone en queries que ven otros jugadores (rooms.get, etc) — solo vuelve
+     * en la respuesta de la mutation al dueño. Se exige (junto al clientId) en
+     * las acciones de mayor impacto: controles de host y lectura de la carta
+     * secreta/voto, para que nadie pueda suplantar a otro jugador con solo
+     * conocer su clientId (que sí es público dentro de la sala).
+     */
+    sessionToken: v.optional(v.string()),
     connected: v.boolean(),
     lastActiveAt: v.optional(v.number()),
     score: v.number(),

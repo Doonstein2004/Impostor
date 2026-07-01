@@ -11,7 +11,7 @@ import { ColorPicker } from '@/components/ColorPicker';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 export default function Home() {
-  const { clientId, name, setName, avatarColor, setAvatarColor, currentRoomCode, setCurrentRoomCode, notice, setNotice } = useSession(
+  const { clientId, name, setName, avatarColor, setAvatarColor, currentRoomCode, setCurrentRoomCode, setSessionToken, notice, setNotice } = useSession(
     useShallow((s) => ({
       clientId: s.clientId,
       name: s.name,
@@ -20,6 +20,7 @@ export default function Home() {
       setAvatarColor: s.setAvatarColor,
       currentRoomCode: s.currentRoomCode,
       setCurrentRoomCode: s.setCurrentRoomCode,
+      setSessionToken: s.setSessionToken,
       notice: s.notice,
       setNotice: s.setNotice,
     })),
@@ -51,6 +52,7 @@ export default function Home() {
     setBusy(true);
     try {
       const res = await createRoom({ clientId, name: name.trim(), color: avatarColor });
+      setSessionToken(res.sessionToken);
       router.push(`/room/${res.code}`);
     } catch (e) {
       setError(friendlyError(e, 'No se pudo crear la sala. Probá de nuevo.'));
@@ -68,6 +70,7 @@ export default function Home() {
     setBusy(true);
     try {
       const res = await joinRoom({ code: code.trim().toUpperCase(), clientId, name: name.trim(), color: avatarColor, password: roomPassword || undefined });
+      if (res.sessionToken) setSessionToken(res.sessionToken);
       router.push(`/room/${res.code}`);
     } catch (e) {
       const msg = String(e);
@@ -90,6 +93,7 @@ export default function Home() {
     setBusy(true);
     try {
       const res = await joinAsSpectator({ code: spectatorCode, clientId, name: name.trim(), color: avatarColor, password: roomPassword || undefined });
+      if (res.sessionToken) setSessionToken(res.sessionToken);
       router.push(`/room/${res.code}`);
     } catch (e) {
       setError(friendlyError(e, 'No se pudo entrar como espectador.'));
@@ -270,6 +274,13 @@ export default function Home() {
           <Text variant="muted" className="text-sm">Torneo</Text>
         </Pressable>
       </View>
+
+      <Pressable
+        onPress={() => router.push('/privacy' as never)}
+        className="mb-4 items-center py-2"
+      >
+        <Text variant="muted" className="text-xs underline">Política de privacidad</Text>
+      </Pressable>
     </Screen>
   );
 }

@@ -24,29 +24,31 @@ const BASE_CONFIG = {
   maxPlayers: 10,
 };
 
-/** Crea sala con 3 jugadores y arranca una ronda. Devuelve { code, roomId, roundId, players }. */
+/** Crea sala con 3 jugadores y arranca una ronda. Devuelve { code, roomId, roundId, players, tokens }. */
 async function setupGame(t: ReturnType<typeof convexTest>) {
-  const { code, roomId } = await t.mutation(api.rooms.create, {
+  const { code, roomId, sessionToken: hostToken } = await t.mutation(api.rooms.create, {
     clientId: 'host',
     name: 'Host',
   });
 
-  await t.mutation(api.rooms.join, { code, clientId: 'p2', name: 'P2' });
-  await t.mutation(api.rooms.join, { code, clientId: 'p3', name: 'P3' });
+  const { sessionToken: p2Token } = await t.mutation(api.rooms.join, { code, clientId: 'p2', name: 'P2' });
+  const { sessionToken: p3Token } = await t.mutation(api.rooms.join, { code, clientId: 'p3', name: 'P3' });
+  const tokens: Record<string, string> = { host: hostToken, p2: p2Token ?? '', p3: p3Token ?? '' };
 
   await t.mutation(api.rooms.updateConfig, {
     roomId,
     clientId: 'host',
+    sessionToken: hostToken,
     config: BASE_CONFIG,
   });
 
-  await t.mutation(api.game.startRound, { roomId, clientId: 'host' });
+  await t.mutation(api.game.startRound, { roomId, clientId: 'host', sessionToken: hostToken });
 
   const room = await t.query(api.rooms.get, { code });
   const roundId = room!.currentRoundId!;
   const players = room!.players;
 
-  return { code, roomId, roundId, players };
+  return { code, roomId, roundId, players, tokens };
 }
 
 // ─── abstención en votación ──────────────────────────────────────────────────
@@ -54,7 +56,7 @@ async function setupGame(t: ReturnType<typeof convexTest>) {
 describe('game.reveal — abstención (self-vote)', () => {
   it('la abstención no cuenta en el tally y no elige expulsado', async () => {
     const t = convexTest(schema, modules);
-    const { roomId, roundId, players } = await setupGame(t);
+    const { roomId, roundId, players, tokens } = await setupGame(t);
 
     // Dar una pista rápida para poder votar (el backend requiere al menos 1 vuelta).
     const round = await t.query(api.game.getRound, { roundId });
@@ -70,19 +72,20 @@ describe('game.reveal — abstención (self-vote)', () => {
       }
     }
 
-    await t.mutation(api.game.startVoting, { roomId, clientId: 'host' });
+    await t.mutation(api.game.startVoting, { roomId, clientId: 'host', sessionToken: tokens.host! });
 
     // Todos se abstienen (votan a sí mismos).
     for (const p of players.filter((pl) => !pl.isSpectator)) {
       await t.mutation(api.votes.cast, {
         roundId,
         voterClientId: p.clientId,
+        voterSessionToken: tokens[p.clientId]!,
         targetClientId: p.clientId,
       });
     }
 
     // Revelar — con todos absteniéndose no hay expulsado.
-    await t.mutation(api.game.reveal, { roomId, clientId: 'host' });
+    await t.mutation(api.game.reveal, { roomId, clientId: 'host', sessionToken: tokens.host! });
 
     const data = await t.query(api.game.getReveal, { roundId });
     expect(data).not.toBeNull();
@@ -96,22 +99,22 @@ describe('game.reveal — abstención (self-vote)', () => {
 
   it('getReveal separa votos reales de abstenciones correctamente', async () => {
     const t = convexTest(schema, modules);
-    const { roomId, roundId, players } = await setupGame(t);
+    const { roomId, roundId, tokens } = await setupGame(t);
 
-    await t.mutation(api.game.startVoting, { roomId, clientId: 'host' });
+    await t.mutation(api.game.startVoting, { roomId, clientId: 'host', sessionToken: tokens.host! });
 
     // p2 abstiene, host y p3 votan a p2.
     await t.mutation(api.votes.cast, {
-      roundId, voterClientId: 'p2', targetClientId: 'p2',
+      roundId, voterClientId: 'p2', voterSessionToken: tokens.p2!, targetClientId: 'p2',
     });
     await t.mutation(api.votes.cast, {
-      roundId, voterClientId: 'host', targetClientId: 'p2',
+      roundId, voterClientId: 'host', voterSessionToken: tokens.host!, targetClientId: 'p2',
     });
     await t.mutation(api.votes.cast, {
-      roundId, voterClientId: 'p3', targetClientId: 'p2',
+      roundId, voterClientId: 'p3', voterSessionToken: tokens.p3!, targetClientId: 'p2',
     });
 
-    await t.mutation(api.game.reveal, { roomId, clientId: 'host' });
+    await t.mutation(api.game.reveal, { roomId, clientId: 'host', sessionToken: tokens.host! });
     const data = await t.query(api.game.getReveal, { roundId });
 
     expect(data!.abstainedClientIds).toEqual(['p2']);

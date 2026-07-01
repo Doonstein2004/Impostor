@@ -23,6 +23,13 @@ interface SessionState {
   avatarColor: string;
   hydrated: boolean;
   currentRoomCode: string | null;
+  /**
+   * Token secreto de la sala actual (devuelto por create/join/joinAsSpectator).
+   * Prueba que este dispositivo es dueño de `clientId` en esa sala; se manda junto
+   * al clientId en las acciones sensibles (host, carta secreta, voto) para que
+   * nadie pueda suplantar a otro jugador con solo conocer su clientId público.
+   */
+  sessionToken: string | null;
   tutorialSeen: boolean;
   /** Presets de configuración guardados por el usuario. */
   configPresets: ConfigPreset[];
@@ -34,6 +41,7 @@ interface SessionState {
   setAvatarColor: (color: string) => void;
   setHydrated: () => void;
   setCurrentRoomCode: (code: string | null) => void;
+  setSessionToken: (token: string | null) => void;
   setTutorialSeen: () => void;
   savePreset: (name: string, config: GameConfig) => void;
   deletePreset: (id: string) => void;
@@ -51,6 +59,7 @@ export const useSession = create<SessionState>()(
         avatarColor: defaultColorKey(clientId),
         hydrated: false,
         currentRoomCode: null,
+        sessionToken: null,
         tutorialSeen: false,
         configPresets: [],
         notice: null,
@@ -59,6 +68,7 @@ export const useSession = create<SessionState>()(
         setAvatarColor: (avatarColor) => set({ avatarColor }),
         setHydrated: () => set({ hydrated: true }),
         setCurrentRoomCode: (code) => set({ currentRoomCode: code }),
+        setSessionToken: (sessionToken) => set({ sessionToken }),
         setTutorialSeen: () => set({ tutorialSeen: true }),
         savePreset: (name, config) =>
           set({
@@ -81,6 +91,7 @@ export const useSession = create<SessionState>()(
         name: s.name,
         avatarColor: s.avatarColor,
         currentRoomCode: s.currentRoomCode,
+        sessionToken: s.sessionToken,
         tutorialSeen: s.tutorialSeen,
         configPresets: s.configPresets,
       }),

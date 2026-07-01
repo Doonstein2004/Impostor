@@ -16,8 +16,8 @@ import { PlayerAvatar } from './PlayerAvatar';
 import type { RoomView } from './types';
 
 export function Voting({ room }: { room: RoomView }) {
-  const { clientId, setLeaving } = useSession(
-    useShallow((s) => ({ clientId: s.clientId, setLeaving: s.setLeaving })),
+  const { clientId, sessionToken, setLeaving } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, sessionToken: s.sessionToken, setLeaving: s.setLeaving })),
   );
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId;
@@ -49,14 +49,14 @@ export function Voting({ room }: { room: RoomView }) {
   useEffect(() => {
     if (expired && isHost && !hasAutoRevealed.current && roundId) {
       hasAutoRevealed.current = true;
-      runAction(() => reveal({ roomId: room._id, clientId }), 'No se pudo revelar el resultado.');
+      runAction(() => reveal({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' }), 'No se pudo revelar el resultado.');
     }
   }, [expired, isHost]);
   // …y también apenas votan todos (sin esperar al host).
   useEffect(() => {
     if (allVoted && isHost && !hasAutoRevealed.current && roundId) {
       hasAutoRevealed.current = true;
-      runAction(() => reveal({ roomId: room._id, clientId }), 'No se pudo revelar el resultado.');
+      runAction(() => reveal({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' }), 'No se pudo revelar el resultado.');
     }
   }, [allVoted, isHost]);
 
@@ -132,7 +132,7 @@ export function Voting({ room }: { room: RoomView }) {
                   play('vote');
                   Haptics.light();
                   roundId && runAction(
-                    () => castVote({ roundId, voterClientId: clientId, targetClientId: p.clientId }),
+                    () => castVote({ roundId, voterClientId: clientId, voterSessionToken: sessionToken ?? '', targetClientId: p.clientId }),
                     'No se pudo registrar tu voto.',
                   );
                 }}
@@ -195,7 +195,7 @@ export function Voting({ room }: { room: RoomView }) {
             disabled={!roundId}
             onPress={() => {
               roundId && runAction(
-                () => castVote({ roundId, voterClientId: clientId, targetClientId: clientId }),
+                () => castVote({ roundId, voterClientId: clientId, voterSessionToken: sessionToken ?? '', targetClientId: clientId }),
                 'No se pudo registrar la abstención.',
               );
             }}
@@ -218,7 +218,7 @@ export function Voting({ room }: { room: RoomView }) {
           <Button
             title="🏆 Revelar resultado"
             variant="danger"
-            onPress={() => runAction(() => reveal({ roomId: room._id, clientId }), 'No se pudo revelar el resultado.')}
+            onPress={() => runAction(() => reveal({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' }), 'No se pudo revelar el resultado.')}
           />
         </Animated.View>
       )}

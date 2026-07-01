@@ -3,10 +3,16 @@ import { v } from 'convex/values';
 import { internalMutation, mutation, query } from './_generated/server';
 import { internal } from './_generated/api';
 import { gameConfigValidator } from './schema';
+import { assertOwnsIdentity } from './auth';
 
 const INACTIVE_KICK_MS = 3 * 60 * 1000; // 3 minutos
 const MAX_NAME_LEN = 30;
 const MAX_SPECTATORS = 20;
+
+/** Token opaco de sesión (no criptográficamente crítico, sólo debe ser no-adivinable). */
+function makeSessionToken(): string {
+  return crypto.randomUUID();
+}
 
 function validateName(name: string) {
   const trimmed = name.trim();
@@ -40,18 +46,20 @@ export const create = mutation({
       createdAt: Date.now(),
     });
 
+    const sessionToken = makeSessionToken();
     await ctx.db.insert('players', {
       roomId,
       clientId,
       name: validName,
       isHost: true,
       color,
+      sessionToken,
       connected: true,
       score: 0,
       joinedAt: Date.now(),
     });
 
-    return { roomId, code };
+    return { roomId, code, sessionToken };
   },
 });
 
@@ -92,17 +100,19 @@ export const join = mutation({
       throw new Error(`La sala está llena (máx. ${maxPlayers} jugadores)`);
     }
 
+    const sessionToken = makeSessionToken();
     await ctx.db.insert('players', {
       roomId: room._id,
       clientId,
       name: validName,
       isHost: false,
       color,
+      sessionToken,
       connected: true,
       score: 0,
       joinedAt: Date.now(),
     });
-    return { roomId: room._id, code: room.code };
+    return { roomId: room._id, code: room.code, sessionToken };
   },
 });
 
@@ -143,6 +153,7 @@ export const joinAsSpectator = mutation({
       throw new Error(`La sala ya tiene demasiados espectadores (máx. ${MAX_SPECTATORS})`);
     }
 
+    const sessionToken = makeSessionToken();
     await ctx.db.insert('players', {
       roomId: room._id,
       clientId,
@@ -150,11 +161,12 @@ export const joinAsSpectator = mutation({
       isHost: false,
       isSpectator: true,
       color,
+      sessionToken,
       connected: true,
       score: 0,
       joinedAt: Date.now(),
     });
-    return { roomId: room._id, code: room.code, isSpectator: true };
+    return { roomId: room._id, code: room.code, isSpectator: true, sessionToken };
   },
 });
 
@@ -191,11 +203,17 @@ export const leave = mutation({
 
 /** El host expulsa a un jugador de la sala (no puede expulsarse a sí mismo). */
 export const kick = mutation({
-  args: { roomId: v.id('rooms'), hostClientId: v.string(), targetClientId: v.string() },
-  handler: async (ctx, { roomId, hostClientId, targetClientId }) => {
+  args: {
+    roomId: v.id('rooms'),
+    hostClientId: v.string(),
+    hostSessionToken: v.string(),
+    targetClientId: v.string(),
+  },
+  handler: async (ctx, { roomId, hostClientId, hostSessionToken, targetClientId }) => {
     const room = await ctx.db.get(roomId);
     if (!room) throw new Error('Sala no encontrada');
     if (room.hostClientId !== hostClientId) throw new Error('Sólo el host puede expulsar');
+    await assertOwnsIdentity(ctx, roomId, hostClientId, hostSessionToken);
     if (targetClientId === hostClientId) throw new Error('El host no puede expulsarse a sí mismo');
 
     const player = await ctx.db
@@ -260,11 +278,12 @@ export const updatePresence = mutation({
 
 /** El host actualiza la configuración de la partida (sólo en lobby). */
 export const updateConfig = mutation({
-  args: { roomId: v.id('rooms'), clientId: v.string(), config: gameConfigValidator },
-  handler: async (ctx, { roomId, clientId, config }) => {
+  args: { roomId: v.id('rooms'), clientId: v.string(), sessionToken: v.string(), config: gameConfigValidator },
+  handler: async (ctx, { roomId, clientId, sessionToken, config }) => {
     const room = await ctx.db.get(roomId);
     if (!room) throw new Error('Sala no encontrada');
     if (room.hostClientId !== clientId) throw new Error('Sólo el host puede configurar');
+    await assertOwnsIdentity(ctx, roomId, clientId, sessionToken);
     if (room.status !== 'lobby') throw new Error('No se puede configurar en partida');
     await ctx.db.patch(roomId, { config });
   },
@@ -313,11 +332,12 @@ export const get = query({
 
 /** El host establece o borra la contraseña de la sala (solo en lobby). */
 export const updatePassword = mutation({
-  args: { roomId: v.id('rooms'), clientId: v.string(), password: v.optional(v.string()) },
-  handler: async (ctx, { roomId, clientId, password }) => {
+  args: { roomId: v.id('rooms'), clientId: v.string(), sessionToken: v.string(), password: v.optional(v.string()) },
+  handler: async (ctx, { roomId, clientId, sessionToken, password }) => {
     const room = await ctx.db.get(roomId);
     if (!room) throw new Error('Sala no encontrada');
     if (room.hostClientId !== clientId) throw new Error('Solo el host puede cambiar la contraseña');
+    await assertOwnsIdentity(ctx, roomId, clientId, sessionToken);
     if (room.status !== 'lobby') throw new Error('No se puede cambiar en partida');
     const trimmed = password?.trim() ?? '';
     if (trimmed.length > 50) throw new Error('La contraseña es muy larga (máx. 50 caracteres)');

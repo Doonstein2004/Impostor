@@ -647,15 +647,15 @@ const CluesFeed = memo(function CluesFeed({ clues, myClientId, currentTurn, play
 // ─── Main component ────────────────────────────────────────────────────────
 
 export function GameRound({ room }: { room: RoomView }) {
-  const { clientId, name, setLeaving } = useSession(
-    useShallow((s) => ({ clientId: s.clientId, name: s.name, setLeaving: s.setLeaving })),
+  const { clientId, sessionToken, name, setLeaving } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, sessionToken: s.sessionToken, name: s.name, setLeaving: s.setLeaving })),
   );
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId!;
   const chatInset = useChatInset(24);
   const { play } = useSounds();
 
-  const card = useQuery(api.game.getMyCard, { roundId, clientId });
+  const card = useQuery(api.game.getMyCard, { roundId, clientId, sessionToken: sessionToken ?? '' });
   const round = useQuery(api.game.getRound, { roundId });
   const clues = useQuery(api.clues.listByRound, { roundId });
 
@@ -732,7 +732,7 @@ export function GameRound({ room }: { room: RoomView }) {
   useEffect(() => {
     if (allSpoke && mustDoMoreVueltas && isHost && !hasAutoAdvanced.current) {
       hasAutoAdvanced.current = true;
-      runAction(() => nextClueRound({ roomId: room._id, clientId }), 'No se pudo avanzar de vuelta.');
+      runAction(() => nextClueRound({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' }), 'No se pudo avanzar de vuelta.');
     }
   }, [allSpoke, mustDoMoreVueltas, isHost]);
 
@@ -802,7 +802,7 @@ export function GameRound({ room }: { room: RoomView }) {
         confirmCancel ? (
           <View className="flex-row gap-2 items-center">
             <Pressable
-              onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId }), 'No se pudo cancelar la ronda.')}
+              onPress={() => runAction(() => backToLobby({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' }), 'No se pudo cancelar la ronda.')}
               className="px-2.5 py-1 rounded-lg border border-impostor-500/60 bg-impostor-500/10"
             >
               <Text className="text-impostor-400 text-xs font-display tracking-wide">CANCELAR RONDA</Text>
@@ -898,13 +898,13 @@ export function GameRound({ room }: { room: RoomView }) {
               <Button
                 title={`🔄 Nueva vuelta (vuelta ${currentTurn + 1})`}
                 variant="secondary"
-                onPress={() => runAction(() => nextClueRound({ roomId: room._id, clientId }), 'No se pudo iniciar la nueva vuelta.')}
+                onPress={() => runAction(() => nextClueRound({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' }), 'No se pudo iniciar la nueva vuelta.')}
               />
             )}
             <Button
               title="🗳️ Abrir votación"
               variant="danger"
-              onPress={() => runAction(() => startVoting({ roomId: room._id, clientId }), 'No se pudo abrir la votación.')}
+              onPress={() => runAction(() => startVoting({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' }), 'No se pudo abrir la votación.')}
             />
           </Animated.View>
         ) : (

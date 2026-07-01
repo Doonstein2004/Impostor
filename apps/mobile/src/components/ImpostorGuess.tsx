@@ -19,6 +19,7 @@ function norm(s: string): string {
 
 export function ImpostorGuess({ room }: { room: RoomView }) {
   const clientId = useSession((s) => s.clientId);
+  const sessionToken = useSession((s) => s.sessionToken);
   const isHost = room.hostClientId === clientId;
   const roundId = room.currentRoundId!;
   const chatInset = useChatInset(24);
@@ -59,7 +60,7 @@ export function ImpostorGuess({ room }: { room: RoomView }) {
     if (busy) return;
     setBusy(true);
     try {
-      await submitGuess({ roundId, clientId, guess: value });
+      await submitGuess({ roundId, clientId, sessionToken: sessionToken ?? '', guess: value });
     } catch (e) {
       toast.error(friendlyError(e, 'No se pudo enviar la adivinanza.'));
     } finally {

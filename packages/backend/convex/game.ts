@@ -2,6 +2,7 @@ import { filterPool, setupRound, tallyVotes, type GameConfig } from '@impostor/c
 import { CHARACTERS } from '@impostor/data';
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import { assertOwnsIdentity } from './auth';
 async function upsertStats(
   ctx: any,
   clientId: string,
@@ -86,11 +87,12 @@ function shuffleArr<T>(arr: T[]): T[] {
 // ─── Iniciar ronda ────────────────────────────────────────────────────────────
 
 export const startRound = mutation({
-  args: { roomId: v.id('rooms'), clientId: v.string() },
-  handler: async (ctx, { roomId, clientId }) => {
+  args: { roomId: v.id('rooms'), clientId: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { roomId, clientId, sessionToken }) => {
     const room = await ctx.db.get(roomId);
     if (!room) throw new Error('Sala no encontrada');
     if (room.hostClientId !== clientId) throw new Error('Sólo el host puede iniciar');
+    await assertOwnsIdentity(ctx, roomId, clientId, sessionToken);
 
     const players = await ctx.db
       .query('players')
@@ -232,11 +234,12 @@ export const skipSpeaker = mutation({
 // ─── Nueva vuelta de pistas ───────────────────────────────────────────────────
 
 export const nextClueRound = mutation({
-  args: { roomId: v.id('rooms'), clientId: v.string() },
-  handler: async (ctx, { roomId, clientId }) => {
+  args: { roomId: v.id('rooms'), clientId: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { roomId, clientId, sessionToken }) => {
     const room = await ctx.db.get(roomId);
     if (!room || !room.currentRoundId) throw new Error('No hay ronda activa');
     if (room.hostClientId !== clientId) throw new Error('Sólo el host puede avanzar');
+    await assertOwnsIdentity(ctx, roomId, clientId, sessionToken);
 
     const round = await ctx.db.get(room.currentRoundId);
     if (!round) throw new Error('Ronda no encontrada');
@@ -293,8 +296,12 @@ export const getRound = query({
 
 /** Carta privada del jugador. */
 export const getMyCard = query({
-  args: { roundId: v.id('rounds'), clientId: v.string() },
-  handler: async (ctx, { roundId, clientId }) => {
+  args: { roundId: v.id('rounds'), clientId: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { roundId, clientId, sessionToken }) => {
+    const roundForAuth = await ctx.db.get(roundId);
+    if (!roundForAuth) return null;
+    await assertOwnsIdentity(ctx, roundForAuth.roomId, clientId, sessionToken);
+
     const assignment = await ctx.db
       .query('assignments')
       .withIndex('by_round_client', (q) => q.eq('roundId', roundId).eq('clientId', clientId))
@@ -330,11 +337,12 @@ export const getMyCard = query({
 
 /** Abre la votación. */
 export const startVoting = mutation({
-  args: { roomId: v.id('rooms'), clientId: v.string() },
-  handler: async (ctx, { roomId, clientId }) => {
+  args: { roomId: v.id('rooms'), clientId: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { roomId, clientId, sessionToken }) => {
     const room = await ctx.db.get(roomId);
     if (!room || !room.currentRoundId) throw new Error('No hay ronda activa');
     if (room.hostClientId !== clientId) throw new Error('Sólo el host puede abrir la votación');
+    await assertOwnsIdentity(ctx, roomId, clientId, sessionToken);
     await ctx.db.patch(room.currentRoundId, { status: 'voting', votingStartedAt: Date.now() });
     await ctx.db.patch(roomId, { status: 'voting' });
   },
@@ -342,11 +350,12 @@ export const startVoting = mutation({
 
 /** Revela resultado. Si el impostor fue detectado, transiciona a impostorGuessing para darle una oportunidad. */
 export const reveal = mutation({
-  args: { roomId: v.id('rooms'), clientId: v.string() },
-  handler: async (ctx, { roomId, clientId }) => {
+  args: { roomId: v.id('rooms'), clientId: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { roomId, clientId, sessionToken }) => {
     const room = await ctx.db.get(roomId);
     if (!room || !room.currentRoundId) throw new Error('No hay ronda activa');
     if (room.hostClientId !== clientId) throw new Error('Sólo el host puede revelar');
+    await assertOwnsIdentity(ctx, roomId, clientId, sessionToken);
 
     const round = await ctx.db.get(room.currentRoundId);
     if (!round) throw new Error('Ronda no encontrada');
@@ -393,8 +402,8 @@ export const reveal = mutation({
 
 /** El impostor detectado intenta adivinar el personaje secreto. También puede ser forzado por el host (guess vacío = error). */
 export const submitImpostorGuess = mutation({
-  args: { roundId: v.id('rounds'), clientId: v.string(), guess: v.string() },
-  handler: async (ctx, { roundId, clientId, guess }) => {
+  args: { roundId: v.id('rounds'), clientId: v.string(), sessionToken: v.string(), guess: v.string() },
+  handler: async (ctx, { roundId, clientId, sessionToken, guess }) => {
     const round = await ctx.db.get(roundId);
     if (!round || round.status !== 'impostorGuessing') throw new Error('No hay adivinanza activa');
 
@@ -404,6 +413,7 @@ export const submitImpostorGuess = mutation({
     const isEjected = round.ejectedClientId === clientId;
     const isHost = room.hostClientId === clientId;
     if (!isEjected && !isHost) throw new Error('Solo el impostor expulsado o el host pueden resolver');
+    await assertOwnsIdentity(ctx, round.roomId, clientId, sessionToken);
 
     const secret = charById.get(round.secretCharacterId);
     const norm = (s: string) =>
@@ -479,11 +489,12 @@ export const submitImpostorGuess = mutation({
 
 /** Revancha inmediata: vuelve al lobby y arranca la siguiente ronda sin parar. */
 export const quickRematch = mutation({
-  args: { roomId: v.id('rooms'), clientId: v.string() },
-  handler: async (ctx, { roomId, clientId }) => {
+  args: { roomId: v.id('rooms'), clientId: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { roomId, clientId, sessionToken }) => {
     const room = await ctx.db.get(roomId);
     if (!room) throw new Error('Sala no encontrada');
     if (room.hostClientId !== clientId) throw new Error('Sólo el host puede iniciar la revancha');
+    await assertOwnsIdentity(ctx, roomId, clientId, sessionToken);
     if (room.status !== 'reveal') throw new Error('Solo se puede revanchar desde el reveal');
 
     const players = await ctx.db
@@ -548,11 +559,12 @@ export const quickRematch = mutation({
 
 /** Vuelve al lobby. Con `newSession: true` reinicia scores, usedCharacterIds y roundNumber. */
 export const backToLobby = mutation({
-  args: { roomId: v.id('rooms'), clientId: v.string(), newSession: v.optional(v.boolean()) },
-  handler: async (ctx, { roomId, clientId, newSession }) => {
+  args: { roomId: v.id('rooms'), clientId: v.string(), sessionToken: v.string(), newSession: v.optional(v.boolean()) },
+  handler: async (ctx, { roomId, clientId, sessionToken, newSession }) => {
     const room = await ctx.db.get(roomId);
     if (!room) throw new Error('Sala no encontrada');
     if (room.hostClientId !== clientId) throw new Error('Sólo el host puede reiniciar');
+    await assertOwnsIdentity(ctx, roomId, clientId, sessionToken);
 
     if (newSession) {
       const players = await ctx.db
