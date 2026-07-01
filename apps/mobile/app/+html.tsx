@@ -65,9 +65,6 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icon.svg" />
 
-        {/* Performance: preconnect for Google Fonts */}
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-
         {/* Avoid white flash before hydration */}
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: `html,body{background-color:#0b0f0e;color:#ffffff;}` }} />
