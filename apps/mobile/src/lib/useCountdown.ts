@@ -26,7 +26,7 @@ export function useCountdown(
 ): CountdownResult {
   const [timeLeft, setTimeLeft] = useState(totalSeconds);
   const animatedProgress = useSharedValue(1);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   // Desfase reloj-cliente vs reloj-servidor (ms). Se mide una sola vez con la
   // hora del servidor para que el contador no vaya adelantado entre dispositivos.
