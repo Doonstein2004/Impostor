@@ -287,6 +287,83 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-01 (tanda 19) — Auditoría pre-Play Console: seguridad, performance, build
+
+Sesión de auditoría completa (seguridad, PageSpeed, madurez para Play Console) con fixes aplicados.
+
+- **`sessionToken` — cierre de suplantación de identidad (seguridad)**:
+  - Hallazgo: todas las mutations confiaban en el `clientId` que manda el cliente como si fuera
+    un token de sesión, pero `rooms.get` devuelve el `clientId` (y `hostClientId`) de TODOS los
+    jugadores a TODOS los jugadores de la sala (necesario para mostrar nombres/turnos/host).
+    Como Convex se llama directo desde el navegador, cualquier jugador podía leer el `clientId`
+    de otro y suplantarlo: robar controles de host (`kick`/`updateConfig`/`updatePassword`/
+    `startRound`/`nextClueRound`/`startVoting`/`reveal`/`quickRematch`/`backToLobby`), leer el
+    rol/personaje secreto de cualquiera (`game.getMyCard`) o votar/adivinar como otro
+    (`votes.cast`/`submitImpostorGuess`).
+  - Fix: campo nuevo `sessionToken` (optional string, UUID) en `players`, generado server-side
+    en `rooms.create`/`join`/`joinAsSpectator` y devuelto **solo** al dueño en la respuesta de
+    la mutation (nunca en queries que ven otros jugadores). Helper compartido
+    `packages/backend/convex/auth.ts` (`assertOwnsIdentity`) exige que `sessionToken` matchee
+    el guardado en `players` antes de ejecutar la acción. Se aplicó a todas las mutations de
+    arriba, no solo a las explícitamente "de host", para no dejar un límite parcial/inconsistente.
+  - Alcance consciente: chat (`messages`), reacciones (`liveReactions`), `updateProfile`,
+    `updatePresence` y `leave` siguen confiando en `clientId` tal cual — spoofear un mensaje de
+    chat no tiene impacto real (equivalente a un chat de invitados sin cuenta).
+  - Cliente: `sessionToken` se persiste en el store de sesión (`session.ts`, junto a `clientId`)
+    y se manda en cada mutation protegida. Reconexión al recargar sigue funcionando porque
+    clientId+token viven juntos en el mismo storage persistido (no hace falta volver a pedirlo
+    al server).
+  - **Requirió push a Convex** (schema + mutations nuevas).
+
+- **Bug de typecheck no detectado (`packages/ui`)**: sus `devDependencies` (`react@18.3.1`,
+  `react-native@0.76.5`, `@types/react@~18.3.12`) nunca se actualizaron en la migración a SDK 56
+  (tanda 17), y le faltaba el archivo de augmentación ambient de Uniwind
+  (`src/uniwind-types.d.ts`, con `/// <reference types="uniwind/types" />`) que sí tenía
+  `apps/mobile`. Esto rompía `pnpm typecheck` corrido desde la raíz (el `typecheck` propio de
+  `packages/ui`, parte de `turbo run typecheck`) — nadie lo había notado porque solo se
+  verificaba `apps/mobile`'s tsc directamente. Fix: deps actualizadas a React 19.2.7/RN 0.86.0 +
+  `uniwind` agregado como devDependency + el `.d.ts` creado.
+
+- **Bugs de runtime por API removida en RN 0.86**:
+  - `useCountdown.ts`: `useRef<T>()` sin valor inicial ya no es válido con los tipos de React 19
+    (requiere argumento explícito).
+  - `LiveReactionOverlay.tsx`: usaba `StyleSheet.absoluteFillObject`, eliminado en RN 0.86 (solo
+    queda `absoluteFill`). El spread de `undefined` no tiraba error de runtime, pero el overlay
+    de reacciones perdía el posicionamiento absoluto de pantalla completa.
+
+- **Fuentes Inter rotas en web**: `global.css` importaba "Inter" desde Google Fonts pero el
+  `@font-face` que mapea los nombres que usa Uniwind/RN (`Inter_400Regular`/`Inter_700Bold`)
+  tenía `src: local(...)` solamente, sin URL — nunca resolvía salvo que el usuario tuviera Inter
+  instalada como fuente de sistema, y el `@import` a Google quedaba descargándose sin usarse.
+  Fix: fuentes auto-hospedadas (`apps/mobile/public/fonts/Inter-{400,700}.ttf`, los mismos
+  archivos que ya se bundleaban para nativo) referenciadas directo por URL, sin dependencia
+  externa a Google Fonts.
+
+- **Bundle de 3 MB en un solo chunk (PageSpeed)**: el export web no hacía code-splitting por
+  ruta — `/`, `/room/[code]`, `/stats`, `/leaderboard`, `/tournament/*` iban todos en el mismo
+  `entry-*.js`. Fix: `expo-router` con `asyncRoutes: { web: "production" }` en `app.json`
+  (feature nativa de Expo Router, no un hack manual). Verificado con un export real: el chunk
+  de la home bajó de 3.09 MB a ~2.7 MB (entry + `__common` + `_layout`), y `/room/[code]`
+  (343 KB), `/stats`, `/leaderboard`, `/tournament/create` ahora cargan solo al navegar ahí.
+
+- **Play Console — bloqueantes cerrados**:
+  - No existía ningún ícono de la app (`app.json` sin `icon`/`adaptiveIcon`, cero PNGs en el
+    proyecto fuera de `node_modules`). Generados con un script Node usando `jimp-compact`
+    (dependencia ya presente vía `@expo/image-utils`, sin instalar nada nuevo) replicando el
+    arte del `icon.svg` existente: `assets/icon.png` (1024, opaco), `assets/adaptive-icon.png`
+    (1024, transparente, para Android), `assets/splash-icon.png`, `public/favicon.png` y
+    `public/og-image.png` (el meta tag `og:image` apuntaba a un archivo que no existía → 404).
+  - Página `/privacy` nueva (`packages/ui/src/PrivacyPolicy.tsx` + `apps/mobile/app/privacy.tsx`,
+    linkeada desde el home) — Play Console exige una URL de política de privacidad, más aún
+    pidiendo micrófono.
+  - `android.permissions: ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"]` agregado a `app.json`: el
+    `AndroidManifest.xml` generado no los tenía pese a que CLAUDE.md decía que sí (probablemente
+    se habían parcheado a mano una vez y un `prebuild --clean` posterior los borró; ahora están
+    declarados en la config fuente, no solo en el manifest generado).
+  - `android.versionCode: 1` en `app.json` + `"appVersionSource": "remote"` y
+    `"autoIncrement": true` en el perfil `production` de `eas.json` — sin esto, la segunda
+    subida a Play Console fallaría (versionCode duplicado).
+
 ### 2026-06-30 (tanda 18) — Parches de Uniwind, monorepo @source y correcciones SEO
 
 - **Resolución de especificidad en Web (Parche Uniwind)**:
