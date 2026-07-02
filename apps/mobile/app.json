@@ -51,7 +51,7 @@
       }
     },
     "plugins": [
-      ["expo-router", { "asyncRoutes": { "web": "production" } }],
+      "expo-router",
       "expo-font",
       [
         "expo-build-properties",
