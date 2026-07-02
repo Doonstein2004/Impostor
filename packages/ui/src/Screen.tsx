@@ -13,11 +13,9 @@ export interface ScreenProps {
 const WEB_MAX_WIDTH = 430;
 
 export function Screen({ children, scroll = false, className = '', noPadding = false }: ScreenProps) {
-  const pad = noPadding ? '' : 'px-4';
-
   const inner = scroll ? (
     <ScrollView
-      className={`flex-1 ${pad}`}
+      style={{ flex: 1, paddingHorizontal: noPadding ? 0 : 16 }}
       contentContainerStyle={{ paddingBottom: 32 }}
       keyboardShouldPersistTaps="handled"
       // En web mostramos la barra para que se pueda scrollear con el mouse.
@@ -26,19 +24,21 @@ export function Screen({ children, scroll = false, className = '', noPadding = f
       {children}
     </ScrollView>
   ) : (
-    <View className={`flex-1 ${pad} ${className}`}>{children}</View>
+    <View style={{ flex: 1, paddingHorizontal: noPadding ? 0 : 16 }} className={className || undefined}>
+      {children}
+    </View>
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#0b0f0e' }} edges={['top', 'bottom']}>
       {/* On web: center and cap width so it looks like a phone app, not a stretched website. */}
       <View
-        className="flex-1 w-full bg-surface"
-        style={
-          Platform.OS === 'web'
-            ? { alignSelf: 'center', maxWidth: WEB_MAX_WIDTH }
-            : undefined
-        }
+        style={{
+          flex: 1,
+          width: '100%',
+          backgroundColor: '#0b0f0e',
+          ...(Platform.OS === 'web' ? { alignSelf: 'center', maxWidth: WEB_MAX_WIDTH } : null),
+        }}
       >
         {inner}
       </View>

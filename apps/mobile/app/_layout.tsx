@@ -64,11 +64,13 @@ export default function RootLayout() {
   const isReady = hydrated && (Platform.OS === 'web' || fontsLoaded || !!fontError);
 
   if (!isReady) {
-    return <View className="flex-1 bg-surface" />;
+    // style en vez de className: los wrappers de layout de nivel raíz usan estilo
+    // inline (ver Screen.tsx para el porqué — bug de Uniwind en release nativo).
+    return <View style={{ flex: 1, backgroundColor: '#0b0f0e' }} />;
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0b0f0e' }}>
       <SafeAreaProvider>
         <AppContent />
       </SafeAreaProvider>

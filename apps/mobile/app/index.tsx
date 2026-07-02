@@ -11,7 +11,6 @@ import { ColorPicker } from '@/components/ColorPicker';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 export default function Home() {
-  console.log('[DIAG] Home() render start');
   const { clientId, name, setName, avatarColor, setAvatarColor, currentRoomCode, setCurrentRoomCode, setSessionToken, notice, setNotice } = useSession(
     useShallow((s) => ({
       clientId: s.clientId,
@@ -104,7 +103,6 @@ export default function Home() {
     }
   }
 
-  console.log('[DIAG] Home() about to return JSX');
   return (
     <Screen scroll>
       {/* Aviso flash (ej. "Te expulsaron") al volver al home */}

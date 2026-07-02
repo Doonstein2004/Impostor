@@ -287,6 +287,56 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-02 (tanda 20) — Fix pantalla negra en Android release (bug de Uniwind nativo)
+
+Tras subir el primer APK de release para probar en dispositivo, la app abría en pantalla
+100% negra (nada visible, ni siquiera texto). El bug NO aparecía ni en web (dev ni prod)
+ni en el emulador/Metro — solo en un build **release** real de Android.
+
+- **Metodología de diagnóstico** (sesión larga, sin acceso a ADB al principio por ser sesión
+  remota): se instrumentó la app para mandar checkpoints de arranque a Convex por red
+  (tabla/mutación `diagnostics` temporales, ya borradas) — `RootLayout` listo, `Home()`
+  renderizado, `onLayout` de elementos de prueba. Esto permitió confirmar que **React
+  ejecutaba y devolvía JSX sin errores**, y que el motor de layout (Yoga/Fabric) calculaba
+  posiciones/tamaños reales — pero nada se pintaba en pantalla. Cuando se recuperó acceso a
+  ADB, capturas de pantalla + `uiautomator dump` + `logcat` confirmaron lo mismo con más
+  detalle: la vista raíz medía el tamaño completo de la pantalla pero no tenía contenido
+  visual.
+- **Bug de proceso descubierto en el camino**: la tarea de Gradle `createBundleReleaseJsAndAssets`
+  quedaba en caché (`UP-TO-DATE`) aunque el JS hubiera cambiado, así que varios builds de
+  release "de prueba" durante la sesión en realidad tenían el bundle viejo adentro. Hay que
+  forzar `--rerun-tasks` en esa tarea (o limpiar) para confiar en un build de test; se
+  verificó con `grep` sobre el bytecode Hermes embebido en el APK que el string esperado
+  estuviera realmente presente antes de cada prueba.
+- **Descartado por evidencia directa (no por sospecha)**: `expo-router`'s `asyncRoutes`
+  (afectaba a web, no a Android), R8/ProGuard (se probó con minify desactivado, mismo bug),
+  splash screen nativo trabado (`expo-splash-screen` ni siquiera está instalado como
+  dependencia).
+- **Causa raíz real**: aislada con cajas de diagnóstico de colores en distintos niveles del
+  árbol de componentes. Cualquier elemento con `style` inline de React Native puro pintaba
+  bien en cualquier posición (nivel raíz, hermano del `Stack` de navegación, dentro de la
+  ruta `index` pero fuera del componente `Screen`). El único punto que nunca pintaba era
+  **dentro del componente `Screen`** (`packages/ui/src/Screen.tsx`), cuyo wrapper externo
+  (`SafeAreaView` + `View` + `ScrollView`) usaba `className` de Uniwind. Conclusión: Uniwind
+  no está aplicando los estilos nativos (`className`) a ese wrapper específico en el build de
+  release de Android — el layout se calcula (por eso `onLayout` daba dimensiones reales) pero
+  el pintado nativo nunca ocurre. `className` en componentes ya anidados dentro de un `Screen`
+  que sí renderiza (`Button`, `Card`, `Text`) funciona bien, así que el problema es específico
+  a ese wrapper de nivel más alto, no un fallo total de Uniwind.
+- **Fix**: `Screen.tsx` reemplaza el `className` de `SafeAreaView`/`View`/`ScrollView` (ambas
+  variantes, con y sin `scroll`) por `style` inline equivalente. Como `Screen` es la base de
+  **todas** las pantallas de la app (`index`, `room/[code]`, `Lobby`, `GameRound`, `Voting`,
+  `Reveal`, etc.), este único cambio arregla el renderizado en toda la app. Se aplicó el mismo
+  criterio preventivo en `_layout.tsx` (fondo de `GestureHandlerRootView` y de la pantalla de
+  carga inicial) ya que son wrappers de nivel raíz análogos.
+  - **Nota**: no se investigó la causa raíz exacta dentro de Uniwind (podría ser su
+    interacción específica con `SafeAreaView` de `react-native-safe-area-context`). Si en el
+    futuro aparecen más pantallas con contenido invisible en release nativo (no en web), este
+    es el primer sospechoso: revisar si el wrapper de más alto nivel de esa pantalla usa
+    `className` en vez de `style`.
+  - Verificado en dispositivo físico real (dev build local, R8 habilitado) navegando el flujo
+    completo: home → crear sala → lobby con tutorial y configuración.
+
 ### 2026-07-01 (tanda 19) — Auditoría pre-Play Console: seguridad, performance, build
 
 Sesión de auditoría completa (seguridad, PageSpeed, madurez para Play Console) con fixes aplicados.
