@@ -1,7 +1,7 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 import type { PropsWithChildren } from 'react';
 
-const SITE_URL = 'https://impostor-futbol.vercel.app';
+const SITE_URL = 'https://impostor-black-one.vercel.app';
 const TITLE = 'Impostor Fútbol — El juego de roles multijugador';
 const DESCRIPTION =
   'Juego multijugador en tiempo real: adivina quién es el impostor entre tus amigos antes de que te vote a vos. Personajes de fútbol, roles secretos y mucha discusión.';

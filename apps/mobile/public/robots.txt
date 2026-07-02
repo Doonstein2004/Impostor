@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://impostor-futbol.vercel.app/sitemap.xml
+Sitemap: https://impostor-black-one.vercel.app/sitemap.xml

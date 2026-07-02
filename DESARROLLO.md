@@ -253,14 +253,15 @@ npm install -g vercel
 pnpm --filter @impostor/mobile build:web && vercel apps/mobile/dist --prod
 ```
 
-El `vercel.json` en `apps/mobile/` ya configura el routing SPA automáticamente.
+El `vercel.json` en la raíz del repo ya configura el routing (clean URLs + rewrites para
+rutas dinámicas) automáticamente.
 
 **Re-deploy** (cuando haya cambios en el código):
 ```powershell
 pnpm --filter @impostor/mobile build:web && vercel apps/mobile/dist --prod
 ```
 
-> URL pública resultante: `https://impostor-futbol.vercel.app` (o la que Vercel asigne)
+> URL pública resultante: `https://impostor-black-one.vercel.app` (o la que Vercel asigne)
 
 ---
 
