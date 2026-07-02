@@ -37,7 +37,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://curious-sheep-977.convex.cloud"
+        "EXPO_PUBLIC_CONVEX_URL": "https://shiny-hare-972.convex.cloud"
       }
     }
   },

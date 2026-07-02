@@ -39,11 +39,26 @@ Contiene reglas de trabajo, decisiones de arquitectura y el historial de cambios
 
 ## Convex Cloud
 
-- **Dev deployment**: `dev:curious-sheep-977` → `https://curious-sheep-977.convex.cloud`
-- El deployment de dev es persistente; no hace falta dejar `pnpm convex:dev` corriendo para que los amigos puedan jugar.
-- Solo se necesita `pnpm convex:dev` durante desarrollo activo (para hot-push de funciones).
-- Archivo de config: `packages/backend/.env.local`
-- URL en frontend: `apps/mobile/.env` → `EXPO_PUBLIC_CONVEX_URL`
+**Dev y producción son deployments separados desde tanda 24 (2026-07-02).** Antes de eso,
+todo (desarrollo activo + amigos jugando + build de Play Store) compartía el mismo deployment
+de dev — riesgoso: cualquier `pnpm convex:dev` con un cambio a medio terminar se pusheaba en
+caliente a quien estuviera jugando en ese momento. Ahora:
+
+- **Dev**: `dev:curious-sheep-977` → `https://curious-sheep-977.convex.cloud`. Usalo para
+  desarrollo activo (`pnpm convex:dev`, hot-push de funciones) y para correr la app localmente.
+  Es persistente; no hace falta dejarlo corriendo para que funcione algo ya pusheado.
+- **Producción**: `prod:shiny-hare-972` → `https://shiny-hare-972.convex.cloud`. Es lo que
+  usan de verdad la app de Play Store (`eas.json` → perfil `production`) y el sitio de Vercel
+  (env var `EXPO_PUBLIC_CONVEX_URL` en Vercel, scope Production). **Nunca correr
+  `pnpm convex:dev` apuntando acá** — para pushear un cambio a producción, primero probarlo en
+  dev y después `npx convex deploy` (sube el código tal cual está, sin modo watch).
+  - Las env vars (ej. `LIVEKIT_API_KEY`/`SECRET`) hay que replicarlas a mano en cada
+    deployment: `npx convex env set --prod KEY value` (o sin `--prod` para dev).
+- Archivo de config local: `packages/backend/.env.local` (apunta a dev — es el que usa
+  `pnpm convex:dev`/`pnpm dev`).
+- Vercel tiene `EXPO_PUBLIC_CONVEX_URL` seteada por separado en cada scope (Development/Preview
+  → dev deployment, Production → prod deployment) — no confundir con `apps/mobile/.env`, que
+  solo se usa para desarrollo local y sigue apuntando a dev.
 
 ---
 
@@ -225,21 +240,28 @@ de navegación. Con el banner, el usuario puede volver a su sala sin buscar el c
 
 ## Vercel (web frontend)
 
-- Proyecto: `impostor` en Vercel (cuenta doonstein2004s-projects).
-- `vercel.json` raíz: buildCommand apunta solo a `@impostor/mobile` para evitar que Turbo
-  intente compilar `@impostor/desktop` (tauri) en Linux.
-- `apps/mobile/vercel.json`: rewrite SPA para que todas las rutas apunten a `index.html`.
+- Proyecto: `impostor` en Vercel (cuenta doonstein2004s-projects). Dominio real:
+  `impostor-black-one.vercel.app`.
+- `vercel.json` (raíz del repo, es el único que Vercel lee — ver tanda 21): buildCommand apunta
+  solo a `@impostor/mobile` para evitar que Turbo intente compilar `@impostor/desktop` (tauri)
+  en Linux. También tiene `cleanUrls` + `rewrites` para las rutas dinámicas (`/room/:code`,
+  `/tournament/:code`) — no un rewrite SPA genérico, porque la web usa `output: "static"` y
+  cada ruta tiene su propio HTML con SEO propio.
 - Build command: `pnpm --filter @impostor/mobile run build:web`
 - Output directory: `apps/mobile/dist`
 
-### Variable de entorno requerida en Vercel (NO está en git)
-Agregar en Vercel Dashboard → Settings → Environment Variables:
-| Variable | Valor |
-|----------|-------|
-| `EXPO_PUBLIC_CONVEX_URL` | `https://curious-sheep-977.convex.cloud` |
+### Variables de entorno en Vercel (NO están en git)
+`EXPO_PUBLIC_CONVEX_URL` está seteada **por separado en cada scope** (Settings → Environment
+Variables), desde que se separó dev/prod de Convex (tanda 24):
+
+| Scope | Valor |
+|-------|-------|
+| Production | `https://shiny-hare-972.convex.cloud` (prod) |
+| Preview / Development | `https://curious-sheep-977.convex.cloud` (dev) |
 
 Sin esta variable, el bundle tiene un placeholder y Convex falla con
-"Couldn't parse deployment name placeholder".
+"Couldn't parse deployment name placeholder". Un cambio en esta variable no redeploya solo —
+hace falta un push nuevo (o `vercel --prod` manual) para que el build la tome.
 
 ---
 
@@ -286,6 +308,28 @@ pnpm --filter @impostor/mobile run export
   - Sin estos datos el modo audio muestra "Audio no configurado" (no rompe nada).
 
 ## Historial de cambios importantes
+
+### 2026-07-02 (tanda 24) — Separación de Convex dev/producción
+
+- **Por qué**: hasta ahora, `dev:curious-sheep-977` era simultáneamente el deployment para
+  desarrollo activo Y el que usaban de verdad los amigos jugando Y el que iba a usar la app de
+  Play Store. Sin ambiente separado: un `pnpm convex:dev` con un cambio a medio probar se
+  pusheaba en caliente a cualquiera jugando en ese momento. Insostenible para una app que va a
+  tener usuarios reales de Play Store.
+- **Creado `prod:shiny-hare-972`** (`npx convex deploy`, target por defecto del proyecto).
+  Recibió el código actual completo (mismo schema/funciones que dev en este momento).
+  Credenciales de LiveKit replicadas a mano (`npx convex env set --prod ...`) — **las env vars
+  NO se copian solas entre deployments**, hay que setearlas en cada uno.
+- **Repointing**: `apps/mobile/eas.json` → perfil `production` → `EXPO_PUBLIC_CONVEX_URL`
+  apunta a `shiny-hare-972`. Vercel → variable `EXPO_PUBLIC_CONVEX_URL` separada por scope
+  (Production → prod, Preview/Development → dev, ver sección Vercel más abajo).
+  `apps/mobile/.env` (desarrollo local) sigue apuntando a dev — correcto, no se toca.
+- **Regla de acá en adelante**: `pnpm convex:dev` (hot-push, modo watch) SOLO contra dev.
+  Para llevar un cambio a producción: probarlo en dev primero, después `npx convex deploy`
+  (push puntual, sin watch) — nunca `convex dev` apuntando al deployment de prod.
+- **Pendiente**: el AAB que ya estaba armado con EAS quedó apuntando al deployment viejo
+  (dev) — hay que recompilarlo antes de subir a Play Console para que efectivamente use
+  producción.
 
 ### 2026-07-02 (tanda 23) — Sistema de reportes (requisito de contenido generado por usuarios)
 
