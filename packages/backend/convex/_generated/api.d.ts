@@ -14,6 +14,7 @@ import type * as game from "../game.js";
 import type * as liveReactions from "../liveReactions.js";
 import type * as livekit from "../livekit.js";
 import type * as messages from "../messages.js";
+import type * as reports from "../reports.js";
 import type * as rooms from "../rooms.js";
 import type * as stats from "../stats.js";
 import type * as time from "../time.js";
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   liveReactions: typeof liveReactions;
   livekit: typeof livekit;
   messages: typeof messages;
+  reports: typeof reports;
   rooms: typeof rooms;
   stats: typeof stats;
   time: typeof time;

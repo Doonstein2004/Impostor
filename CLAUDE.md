@@ -287,6 +287,34 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-02 (tanda 23) — Sistema de reportes (requisito de contenido generado por usuarios)
+
+- **Por qué**: la app tiene chat de texto libre y sala de voz en vivo entre jugadores de una
+  sala, sin ninguna forma de reportar/bloquear conducta abusiva. Google Play exige esto para
+  apps con contenido generado por usuarios — el kick del host (ya existente) resuelve el
+  problema "en el momento" pero no deja registro ni sirve si el que se porta mal es el host.
+- **Tabla `reports`** (`roomId`, `roomCode`, `reporterClientId/Name`, `reportedClientId/Name`,
+  `reason` (acoso/lenguaje_inapropiado/spam/contenido_sexual/otro), `context` opcional,
+  `createdAt`). No dispara ninguna acción automática (no auto-banea ni auto-kickea) — queda
+  como registro para revisión manual del desarrollador vía dashboard de Convex. Mutation
+  `reports.submit` verifica `sessionToken` (mismo patrón de `assertOwnsIdentity` que el resto
+  de acciones sensibles) y que ambos jugadores pertenezcan a la sala.
+- **Dos puntos de entrada en el cliente**:
+  - `Chat.tsx`: mantener presionado un mensaje ajeno abre un modal con motivos; el texto del
+    mensaje reportado se manda como `context`.
+  - `Lobby.tsx`: ícono 🚩 junto a cada jugador no-host distinto de uno mismo, en el roster
+    (mismo lugar que el botón de expulsar del host) — cubre también sesiones de audio, donde
+    no hay mensajes de chat que reportar.
+  - Ninguno de los dos avisa a la persona reportada (evita retaliación).
+- Se agregó una sección "Normas de la comunidad" a `PrivacyPolicy.tsx` documentando esto.
+- **Requirió push a Convex** (tabla + mutation nuevas). Verificado end-to-end con dos sesiones
+  simultáneas (Playwright): reportar a otro jugador desde el lobby efectivamente inserta la
+  fila en Convex con todos los campos correctos.
+- **Pendiente real**: sigue siendo 100% manual (alguien tiene que mirar la tabla `reports` en
+  el dashboard de Convex de vez en cuando). Si el volumen de usuarios crece, conviene un panel
+  de administración o al menos una alerta (ej. Convex scheduled function que mande un email si
+  se acumulan reportes contra el mismo `reportedClientId`).
+
 ### 2026-07-02 (tanda 22) — Dominio real de producción + solicitud de borrado de datos (Play Console)
 
 - **Dominio hardcodeado incorrecto**: `impostor-futbol.vercel.app` era un nombre supuesto de

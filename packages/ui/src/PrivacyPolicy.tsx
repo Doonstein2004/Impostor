@@ -57,7 +57,16 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: '7. Contacto',
+    title: '7. Normas de la comunidad',
+    body: [
+      'Impostor Fútbol incluye chat de texto y, opcionalmente, sala de voz en vivo entre los jugadores de una misma sala. No se permite acoso, lenguaje discriminatorio, contenido sexual, spam ni cualquier otra conducta abusiva.',
+      'Cualquier jugador puede reportar a otro desde el chat (mantené presionado un mensaje) o desde la lista de jugadores de la sala (ícono 🚩), indicando el motivo. El reporte queda registrado para revisión — no se lo notificamos a la persona reportada.',
+      'Además, quien creó la sala (el host) puede expulsar a cualquier jugador en cualquier momento.',
+      'Ante reportes reiterados o conductas graves, podemos bloquear el acceso a la app desde ese dispositivo.',
+    ],
+  },
+  {
+    title: '8. Contacto',
     body: [
       'Si tenés preguntas sobre esta política de privacidad, escribinos a: doonstein@gmail.com',
     ],

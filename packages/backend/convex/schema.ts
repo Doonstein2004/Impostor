@@ -170,6 +170,31 @@ export default defineSchema({
     createdAt: v.number(),
   }).index('by_room', ['roomId']),
 
+  /**
+   * Reportes de conducta/contenido de otro jugador (chat o audio). No dispara ninguna
+   * acción automática — el host ya puede expulsar en el momento (rooms.kick); esto
+   * queda como registro para revisión manual del desarrollador. Requerido por la
+   * política de contenido generado por usuarios de Play Store.
+   */
+  reports: defineTable({
+    roomId: v.id('rooms'),
+    roomCode: v.string(),
+    reporterClientId: v.string(),
+    reporterName: v.string(),
+    reportedClientId: v.string(),
+    reportedName: v.string(),
+    reason: v.union(
+      v.literal('acoso'),
+      v.literal('lenguaje_inapropiado'),
+      v.literal('spam'),
+      v.literal('contenido_sexual'),
+      v.literal('otro'),
+    ),
+    /** Fragmento opcional de contexto (ej. el mensaje reportado), truncado. */
+    context: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index('by_room', ['roomId']),
+
   /** Reacciones efímeras en tiempo real durante la partida (se auto-eliminan a los 5s). */
   liveReactions: defineTable({
     roomId: v.id('rooms'),

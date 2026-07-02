@@ -27,7 +27,8 @@ import Animated, { FadeIn, FadeInDown, FadeInLeft } from 'react-native-reanimate
 import QRCode from 'react-native-qrcode-svg';
 import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
-import { runAction } from '@/lib/useToast';
+import { runAction, toast } from '@/lib/useToast';
+import { friendlyError } from '@/lib/errors';
 import { TutorialButton } from './TutorialModal';
 import { PlayerAvatar } from './PlayerAvatar';
 import { ColorPicker } from './ColorPicker';
@@ -631,6 +632,7 @@ export function Lobby({ room }: { room: RoomView }) {
   const leave = useMutation(api.rooms.leave);
   const kickPlayer = useMutation(api.rooms.kick);
   const updateProfile = useMutation(api.rooms.updateProfile);
+  const submitReport = useMutation(api.reports.submit);
 
   async function pickColor(key: string) {
     setAvatarColor(key);
@@ -645,6 +647,33 @@ export function Lobby({ room }: { room: RoomView }) {
   const [confirmInactive, setConfirmInactive] = useState(false);
   const [kickConfirm, setKickConfirm] = useState<string | null>(null);
   const [showQR, setShowQR] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ clientId: string; name: string } | null>(null);
+
+  const REPORT_REASONS: { key: 'acoso' | 'lenguaje_inapropiado' | 'spam' | 'contenido_sexual' | 'otro'; label: string }[] = [
+    { key: 'acoso', label: 'Acoso' },
+    { key: 'lenguaje_inapropiado', label: 'Lenguaje inapropiado' },
+    { key: 'contenido_sexual', label: 'Contenido sexual' },
+    { key: 'spam', label: 'Spam' },
+    { key: 'otro', label: 'Otro' },
+  ];
+
+  async function handleReport(reason: (typeof REPORT_REASONS)[number]['key']) {
+    if (!reportTarget) return;
+    try {
+      await submitReport({
+        roomId: room._id,
+        clientId,
+        sessionToken: sessionToken ?? '',
+        reportedClientId: reportTarget.clientId,
+        reason,
+      });
+      toast.success('Gracias, lo vamos a revisar.');
+    } catch (e) {
+      toast.error(friendlyError(e, 'No se pudo enviar el reporte.'));
+    } finally {
+      setReportTarget(null);
+    }
+  }
 
   const config = room.config;
   const usedIds = new Set(room.usedCharacterIds);
@@ -914,6 +943,15 @@ export function Lobby({ room }: { room: RoomView }) {
                   <Text className="text-sm">🏆</Text>
                   <Text variant="muted">{p.score}</Text>
                 </View>
+                {!p.isHost && p.clientId !== clientId && (
+                  <Pressable
+                    onPress={() => setReportTarget({ clientId: p.clientId, name: p.name })}
+                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                    className="h-7 w-7 items-center justify-center rounded-lg border border-surface-border active:opacity-70"
+                  >
+                    <Text className="text-sm">🚩</Text>
+                  </Pressable>
+                )}
                 {isHost && !p.isHost && (
                   kickConfirm === p.clientId ? (
                     <View className="flex-row items-center gap-1">
@@ -1138,6 +1176,35 @@ export function Lobby({ room }: { room: RoomView }) {
               className="px-6 py-2 rounded-full border border-surface-border"
             >
               <Text variant="label" className="text-zinc-400 text-sm">Cerrar</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal de reporte */}
+      <Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={() => setReportTarget(null)}>
+        <Pressable
+          className="flex-1 items-center justify-center bg-black/80 px-6"
+          onPress={() => setReportTarget(null)}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()} className="w-full max-w-sm gap-3 p-5 rounded-3xl bg-surface-card border border-surface-border">
+            <Text variant="title">Reportar a {reportTarget?.name}</Text>
+            <Text variant="muted" className="text-xs">
+              ¿Por qué querés reportar a este jugador? No le avisamos a la otra persona.
+            </Text>
+            <View className="gap-2">
+              {REPORT_REASONS.map((r) => (
+                <Pressable
+                  key={r.key}
+                  onPress={() => handleReport(r.key)}
+                  className="px-4 py-2.5 rounded-xl bg-surface-soft border border-surface-border"
+                >
+                  <Text variant="body">{r.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable onPress={() => setReportTarget(null)} className="items-center py-1">
+              <Text variant="muted" className="text-sm">Cancelar</Text>
             </Pressable>
           </Pressable>
         </Pressable>

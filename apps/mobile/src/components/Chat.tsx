@@ -31,12 +31,41 @@ const SIDE_MODE_MIN_WIDTH = 820;
  * - En mobile/web angosto va como barra inferior; reporta su alto real a
  *   `useChatDock` y las pantallas reservan ese espacio (useChatInset).
  */
+const REPORT_REASONS: { key: 'acoso' | 'lenguaje_inapropiado' | 'spam' | 'contenido_sexual' | 'otro'; label: string }[] = [
+  { key: 'acoso', label: 'Acoso' },
+  { key: 'lenguaje_inapropiado', label: 'Lenguaje inapropiado' },
+  { key: 'contenido_sexual', label: 'Contenido sexual' },
+  { key: 'spam', label: 'Spam' },
+  { key: 'otro', label: 'Otro' },
+];
+
 export function GameChat({ room }: { room: RoomView }) {
-  const { clientId, name } = useSession(
-    useShallow((s) => ({ clientId: s.clientId, name: s.name })),
+  const { clientId, name, sessionToken } = useSession(
+    useShallow((s) => ({ clientId: s.clientId, name: s.name, sessionToken: s.sessionToken })),
   );
   const messages = useQuery(api.messages.listByRoom, { roomId: room._id });
   const send = useMutation(api.messages.send);
+  const submitReport = useMutation(api.reports.submit);
+  const [reportTarget, setReportTarget] = useState<{ clientId: string; name: string; text: string } | null>(null);
+
+  async function handleReport(reason: typeof REPORT_REASONS[number]['key']) {
+    if (!reportTarget) return;
+    try {
+      await submitReport({
+        roomId: room._id,
+        clientId,
+        sessionToken: sessionToken ?? '',
+        reportedClientId: reportTarget.clientId,
+        reason,
+        context: reportTarget.text,
+      });
+      toast.success('Gracias, lo vamos a revisar.');
+    } catch (e) {
+      toast.error(friendlyError(e, 'No se pudo enviar el reporte.'));
+    } finally {
+      setReportTarget(null);
+    }
+  }
 
   const { width } = useWindowDimensions();
   const sideMode = Platform.OS === 'web' && width >= SIDE_MODE_MIN_WIDTH;
@@ -115,7 +144,9 @@ export function GameChat({ room }: { room: RoomView }) {
                     {m.name}
                   </Text>
                 )}
-                <View
+                <Pressable
+                  disabled={isMe}
+                  onLongPress={() => setReportTarget({ clientId: m.clientId, name: m.name, text: m.text })}
                   style={{
                     maxWidth: '85%',
                     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16,
@@ -129,7 +160,7 @@ export function GameChat({ room }: { room: RoomView }) {
                   <Text style={{ fontSize: 15, color: isMe ? '#fde68a' : '#e4e4e7', lineHeight: 20 }}>
                     {m.text}
                   </Text>
-                </View>
+                </Pressable>
               </View>
             );
           })
@@ -193,6 +224,41 @@ export function GameChat({ room }: { room: RoomView }) {
     </View>
   );
 
+  // ── Modal de reporte (compartido entre ambos modos) ──────────────────────
+  const reportModal = reportTarget && (
+    <View
+      pointerEvents="box-none"
+      style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 50 }}
+    >
+      <Pressable
+        onPress={() => setReportTarget(null)}
+        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)' }}
+      />
+      <View style={{ width: '85%', maxWidth: 340, borderRadius: 18, backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a', padding: 18, gap: 12 }}>
+        <Text style={{ fontSize: 15, fontWeight: '700', color: '#e4e4e7' }}>
+          Reportar a {reportTarget.name}
+        </Text>
+        <Text style={{ fontSize: 12, color: '#71717a' }}>
+          ¿Por qué querés reportar este mensaje? No le avisamos a la otra persona.
+        </Text>
+        <View style={{ gap: 8 }}>
+          {REPORT_REASONS.map((r) => (
+            <Pressable
+              key={r.key}
+              onPress={() => handleReport(r.key)}
+              style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: '#27272a' }}
+            >
+              <Text style={{ fontSize: 14, color: '#e4e4e7' }}>{r.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable onPress={() => setReportTarget(null)} style={{ alignItems: 'center', paddingVertical: 4 }}>
+          <Text style={{ fontSize: 13, color: '#71717a' }}>Cancelar</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
   // ── Modo panel lateral (web ancho) ───────────────────────────────────────
   if (sideMode) {
     return (
@@ -219,6 +285,7 @@ export function GameChat({ room }: { room: RoomView }) {
             </View>
           )}
         </View>
+        {reportModal}
       </View>
     );
   }
@@ -301,6 +368,7 @@ export function GameChat({ room }: { room: RoomView }) {
           </Animated.View>
         </KeyboardAvoidingView>
       </View>
+      {reportModal}
     </View>
   );
 }
