@@ -4,6 +4,7 @@ import { Text } from './Text';
 interface Section {
   title: string;
   body: string[];
+  anchorId?: string;
 }
 
 const SECTIONS: Section[] = [
@@ -46,15 +47,19 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: '6. Tus derechos',
+    title: '6. Solicitar el borrado de tus datos',
+    anchorId: 'borrado-de-datos',
     body: [
-      'Podés pedirnos en cualquier momento que eliminemos tus estadísticas asociadas a tu dispositivo escribiéndonos a través del contacto de más abajo.',
+      'Impostor Fútbol no tiene sistema de cuentas, así que no hay "cuenta" que borrar — pero podés pedirnos en cualquier momento que eliminemos los datos asociados a tu dispositivo (identificador de dispositivo, nombre de jugador guardado y estadísticas de partidas).',
+      'Pasos para solicitarlo: escribinos a doonstein@gmail.com indicando el nombre de jugador que usás en la app (y, si lo tenés, el código de alguna sala en la que jugaste, para poder ubicar tus datos más rápido).',
+      'Qué se borra: tus estadísticas (partidas jugadas, veces impostor, puntaje) y tu nombre guardado. Qué se conserva: los mensajes de chat y datos de salas ya finalizadas no identifican a nadie más allá del nombre que se ve en pantalla y de todos modos se eliminan automáticamente cuando la sala deja de usarse.',
+      'Procesamos estas solicitudes dentro de los 30 días de recibidas.',
     ],
   },
   {
     title: '7. Contacto',
     body: [
-      'Si tenés preguntas sobre esta política de privacidad, escribinos a: contacto@impostor-futbol.app',
+      'Si tenés preguntas sobre esta política de privacidad, escribinos a: doonstein@gmail.com',
     ],
   },
 ];
@@ -70,7 +75,7 @@ export function PrivacyPolicy() {
       </Text>
 
       {SECTIONS.map((section) => (
-        <View key={section.title} className="mb-6">
+        <View key={section.title} nativeID={section.anchorId} className="mb-6">
           <Text variant="title" className="mb-2">
             {section.title}
           </Text>

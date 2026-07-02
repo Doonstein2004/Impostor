@@ -287,6 +287,28 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-02 (tanda 22) — Dominio real de producción + solicitud de borrado de datos (Play Console)
+
+- **Dominio hardcodeado incorrecto**: `impostor-futbol.vercel.app` era un nombre supuesto de
+  hace varias tandas, nunca fue el dominio real. El dominio real es
+  `impostor-black-one.vercel.app`. Corregido en el `host` del intent filter de Android
+  (`app.json` — afecta App Links/autoVerify), `SITE_URL` de `+html.tsx` (canonical, OpenGraph,
+  JSON-LD), `robots.txt` (Sitemap) y `DESARROLLO.md`. El AAB ya subido a EAS antes de este fix
+  tenía el dominio viejo grabado — hay que regenerarlo antes de publicar en Play Console para
+  que los App Links funcionen.
+- **Solicitud de borrado de datos** (`packages/ui/src/PrivacyPolicy.tsx`, sección 6): Play
+  Console exige una URL pública de solicitud de borrado de datos incluso sin sistema de
+  cuentas (la app usa `clientId` persistente como identificador). Se expandió la sección con
+  pasos concretos (escribir a `doonstein@gmail.com` con el nombre de jugador y, si se tiene,
+  un código de sala) y qué se borra vs. qué se conserva. Sección con `nativeID="borrado-de-datos"`
+  para poder linkear directo con `.../privacy#borrado-de-datos`. Se corrigió también el email
+  de contacto de la sección 7, que tenía un dominio inventado (`contacto@impostor-futbol.app`)
+  que nunca existió.
+  - **Pendiente real**: no hay ningún flujo en la app para que el borrado sea automático —
+    hoy se procesa a mano vía email. Suficiente para la declaración de Play Console, pero si
+    el volumen de pedidos crece conviene un flujo self-service (ej: botón en Configuración
+    que borre `stats`/`players` por `clientId` sin intervención manual).
+
 ### 2026-07-02 (tanda 21) — Fix 404 en rutas directas de Vercel (`/privacy` y otras)
 
 - **Síntoma**: `/privacy` (y cualquier otra ruta) devolvía 404 al entrar por URL directa,
