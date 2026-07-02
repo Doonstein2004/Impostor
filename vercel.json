@@ -1,5 +1,26 @@
 {
   "buildCommand": "pnpm --filter @impostor/mobile run build:web",
   "outputDirectory": "apps/mobile/dist",
-  "installCommand": "pnpm install --frozen-lockfile"
+  "installCommand": "pnpm install --frozen-lockfile",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/room/:code", "destination": "/room/[code].html" },
+    { "source": "/tournament/:code", "destination": "/tournament/[code].html" }
+  ],
+  "headers": [
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" }
+      ]
+    }
+  ]
 }

@@ -287,6 +287,25 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-02 (tanda 21) — Fix 404 en rutas directas de Vercel (`/privacy` y otras)
+
+- **Síntoma**: `/privacy` (y cualquier otra ruta) devolvía 404 al entrar por URL directa,
+  aunque navegar ahí haciendo clic desde dentro de la app funcionaba bien.
+- **Causa**: el `vercel.json` que Vercel realmente usa es el de la **raíz** del repo (porque
+  `outputDirectory` apunta a `apps/mobile/dist`), pero la config de rutas (rewrites/headers)
+  vivía en `apps/mobile/vercel.json` — un archivo que Vercel ignora por completo al no estar
+  en la raíz del proyecto. Nunca se aplicó.
+- Además, ese rewrite (`/(.*)` → `/index.html`, estilo SPA) hubiera estado mal igual: desde
+  que la web usa `output: "static"` (tanda 18), cada ruta genera su propio HTML real
+  (`privacy.html`, `stats.html`, etc.) con sus propias meta tags SEO. Un rewrite a
+  `index.html` serviría siempre la home, perdiendo esas meta tags en rutas directas.
+- **Fix**: `vercel.json` (raíz) ahora tiene `"cleanUrls": true` (mapea `/privacy` →
+  `/privacy.html` automáticamente) más `rewrites` explícitos para las rutas dinámicas que no
+  tienen archivo estático propio (`/room/:code` → `/room/[code].html`,
+  `/tournament/:code` → `/tournament/[code].html`; el archivo literal generado por Expo
+  Router se llama `[code].html`). Se borró `apps/mobile/vercel.json` (no se usaba y quedaba
+  desactualizado/incorrecto).
+
 ### 2026-07-02 (tanda 20) — Fix pantalla negra en Android release (bug de Uniwind nativo)
 
 Tras subir el primer APK de release para probar en dispositivo, la app abría en pantalla
