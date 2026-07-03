@@ -275,12 +275,14 @@ export default function Home() {
         </Pressable>
       </View>
 
-      <Pressable
-        onPress={() => router.push('/privacy' as never)}
-        className="mb-4 items-center py-2"
-      >
-        <Text variant="muted" className="text-xs underline">Política de privacidad</Text>
-      </Pressable>
+      <View className="mb-4 flex-row items-center justify-center gap-4">
+        <Pressable onPress={() => router.push('/privacy' as never)} className="py-2">
+          <Text variant="muted" className="text-xs underline">Política de privacidad</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/terms' as never)} className="py-2">
+          <Text variant="muted" className="text-xs underline">Términos de servicio</Text>
+        </Pressable>
+      </View>
     </Screen>
   );
 }

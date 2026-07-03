@@ -14,13 +14,19 @@ async function waitForHome(page: Page) {
 
 /**
  * Cierra el modal de tutorial si aparece.
- * El tutorial puede aparecer hasta 6-8s después de waitForURL (Convex carga el Lobby).
+ * El tutorial puede aparecer hasta 6-8s después de waitForURL (Convex carga el
+ * Lobby). `isVisible({timeout})` no espera a que un elemento inexistente
+ * aparezca, solo consulta el estado actual — por eso usamos `waitFor`, que sí
+ * hace polling activo.
  */
 async function dismissTutorial(page: Page) {
-  const skipBtn = page.getByText('Saltar');
-  if (await skipBtn.isVisible({ timeout: 8_000 }).catch(() => false)) {
+  const skipBtn = page.getByText('Saltar').first();
+  try {
+    await skipBtn.waitFor({ state: 'visible', timeout: 10_000 });
     await skipBtn.click();
-    await expect(skipBtn).not.toBeVisible({ timeout: 5_000 }).catch(() => {});
+    await expect(skipBtn).not.toBeVisible({ timeout: 5_000 });
+  } catch {
+    // No apareció (tutorial ya visto en una sesión previa) — nada que cerrar.
   }
 }
 

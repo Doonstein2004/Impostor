@@ -309,6 +309,37 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-03 (tanda 26) — Limpieza automática de datos, fix E2E tutorial, términos de servicio
+
+- **Limpieza automática de salas viejas** (`convex/cleanup.ts` + `convex/crons.ts`): cron diario
+  que borra salas (y todo lo que cuelga de ellas: jugadores, rondas, asignaciones, pistas,
+  reacciones, votos, mensajes) con más de 30 días de antigüedad. Por lotes de 20 salas por
+  corrida para no exceder el tiempo de ejecución de la mutation; si hay mucho acumulado, se
+  pone al día en corridas sucesivas. **No** toca `stats` (progreso del jugador, debe persistir),
+  `reports` (registro de moderación) ni `tournaments`. Requirió push a Convex (dev y prod).
+
+- **Fix del test E2E pendiente** (`startGame()` no cerraba el modal de tutorial): la causa real
+  era que `dismissTutorial` usaba `locator.isVisible({timeout})`, que **no** espera a que un
+  elemento inexistente en el DOM aparezca — solo consulta el estado actual una vez. Como el
+  tutorial recién monta después de que el Lobby carga (`SkeletonRoomLoading` → Lobby, puede
+  tardar unos segundos por la carga reactiva de Convex), el chequeo a veces corría ANTES de que
+  el modal existiera, concluía "no hay nada que cerrar", y el modal aparecía después sin que
+  nadie lo cerrara — bloqueando clicks posteriores (`<div class="...bg-black/70...">` interceptando
+  pointer events). Cambiado a `locator.waitFor({state:'visible', timeout})`, que sí hace polling
+  activo. Mismo patrón corregido en el resto de `game.spec.ts`/`rooms.spec.ts` donde `isVisible`
+  se usaba para "esperar" una transición de estado en vez de solo chequear el estado actual
+  (agregado helper `waitOptional`).
+  - De paso se encontró y corrigió un bug de lógica real en el test: `giveCluesAllPlayers` solo
+    daba pistas para **una** vuelta, pero `DEFAULT_CONFIG.maxClueRounds` es 3 — el botón "Abrir
+    votación" nunca iba a aparecer con una sola vuelta. Ahora repite vueltas hasta que el botón
+    de votación aparece (tope de seguridad 5 vueltas).
+  - Quedan 2 fallos sin resolver en `rooms.spec.ts` (badge de límite de jugadores, flujo de
+    contraseña) — de otra naturaleza, no relacionados con el tutorial, quedan para otra sesión.
+
+- **Términos de servicio** (`packages/ui/src/TermsOfService.tsx` + `apps/mobile/app/terms.tsx`):
+  página nueva, mismo patrón que `PrivacyPolicy.tsx`. Linkeada desde el home junto a "Política
+  de privacidad".
+
 ### 2026-07-03 (tanda 25) — EAS Update (OTA) + rate limit anti-spam en creación de salas
 
 - **EAS Update**: instalado `expo-updates` + `eas update:configure` (agrega `updates.url` y

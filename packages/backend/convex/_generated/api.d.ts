@@ -9,7 +9,9 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as cleanup from "../cleanup.js";
 import type * as clues from "../clues.js";
+import type * as crons from "../crons.js";
 import type * as game from "../game.js";
 import type * as liveReactions from "../liveReactions.js";
 import type * as livekit from "../livekit.js";
@@ -29,7 +31,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  cleanup: typeof cleanup;
   clues: typeof clues;
+  crons: typeof crons;
   game: typeof game;
   liveReactions: typeof liveReactions;
   livekit: typeof livekit;

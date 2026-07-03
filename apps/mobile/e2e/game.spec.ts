@@ -14,14 +14,39 @@ async function waitForHome(page: Page) {
 }
 
 /**
+ * Espera (polling activo) a que un locator se vuelva visible, sin fallar el
+ * test si nunca aparece. A diferencia de `locator.isVisible({timeout})` —que
+ * consulta el estado actual una vez y no espera a que un elemento inexistente
+ * en el DOM llegue a existir—, esto usa `waitFor`, que sí reintenta hasta el
+ * timeout. Central para evitar el bug de la tanda 25 (clicks a botones que
+ * todavía no montaron tras una transición de estado reactiva de Convex).
+ */
+async function waitOptional(locator: ReturnType<Page['getByText']>, timeout = 10_000): Promise<boolean> {
+  try {
+    await locator.waitFor({ state: 'visible', timeout });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Cierra el modal de tutorial si aparece.
- * Convex puede tardar 4-6s en cargar el Lobby, por eso esperamos hasta 8s.
+ * Convex puede tardar 4-6s en cargar el Lobby (SkeletonRoomLoading → Lobby), y el
+ * tutorial recién monta ahí — `isVisible({timeout})` NO espera a que un elemento
+ * que todavía no existe en el DOM aparezca, solo consulta el estado actual, así
+ * que devolvía `false` de inmediato si el Lobby no había terminado de cargar
+ * (dejando el modal sin cerrar, bloqueando clicks posteriores). `waitFor` sí
+ * hace polling activo hasta que el elemento aparece o se cumple el timeout.
  */
 async function dismissTutorial(page: Page) {
-  const skipBtn = page.getByText('Saltar');
-  if (await skipBtn.isVisible({ timeout: 8_000 }).catch(() => false)) {
+  const skipBtn = page.getByText('Saltar').first();
+  try {
+    await skipBtn.waitFor({ state: 'visible', timeout: 10_000 });
     await skipBtn.click();
-    await expect(skipBtn).not.toBeVisible({ timeout: 5_000 }).catch(() => {});
+    await expect(skipBtn).not.toBeVisible({ timeout: 5_000 });
+  } catch {
+    // No apareció (tutorial ya visto en una sesión previa) — nada que cerrar.
   }
 }
 
@@ -97,11 +122,12 @@ async function tryGiveClue(pg: Page, text: string): Promise<boolean> {
 }
 
 /**
- * Hace que todos los jugadores den su pista, en el orden que el juego les asigne.
- * Reintenta la ronda varias veces porque el turno avanza de forma reactiva (Convex)
- * y puede que el jugador no tenga el input visible en el primer intento.
+ * Hace que todos los jugadores den su pista en la vuelta actual (una sola vuelta),
+ * en el orden que el juego les asigne. Reintenta varias veces porque el turno
+ * avanza de forma reactiva (Convex) y puede que el jugador no tenga el input
+ * visible en el primer intento.
  */
-async function giveCluesAllPlayers(pages: Page[], text: string) {
+async function giveCluesOneRound(pages: Page[], text: string) {
   const gave = new Set<number>();
   const maxAttempts = pages.length * 4;
 
@@ -119,6 +145,22 @@ async function giveCluesAllPlayers(pages: Page[], text: string) {
   }
 }
 
+/**
+ * Completa todas las vueltas de pistas necesarias para llegar a la votación.
+ * DEFAULT_CONFIG usa `maxClueRounds: 3` (ver packages/core/src/types.ts) — dar
+ * pistas de una sola vuelta no alcanza para que aparezca "Abrir votación".
+ * Corta apenas el botón de votación se vuelve visible (por si el modo aplicado
+ * tiene menos vueltas), con un tope de seguridad de 5 vueltas.
+ */
+async function giveCluesAllPlayers(pages: Page[], pageHost: Page, text: string) {
+  const votingBtn = pageHost.getByText(/Abrir votación|Iniciar votación/i);
+  for (let round = 0; round < 5; round++) {
+    if (await votingBtn.isVisible().catch(() => false)) return;
+    await giveCluesOneRound(pages, text);
+    if (await waitOptional(votingBtn, 2_000)) return;
+  }
+}
+
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 test.describe('Flujo de juego — abstención', () => {
@@ -133,18 +175,18 @@ test.describe('Flujo de juego — abstención', () => {
     await expect(pageHost.getByText(/TU TURNO|Escuchá|VUELTA/i)).toBeVisible({ timeout: 20_000 });
 
     // Todos los jugadores dan su pista (respetando el orden del juego)
-    await giveCluesAllPlayers(pages, 'pista test');
+    await giveCluesAllPlayers(pages, pageHost, 'pista test');
 
     // Host abre la votación (si no se abrió automáticamente)
     const votingBtn = pageHost.getByText(/Abrir votación|Iniciar votación/i);
-    if (await votingBtn.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    if (await waitOptional(votingBtn)) {
       await votingBtn.click();
     }
 
     // Verificar que el botón Abstenerme aparece en al menos una pantalla
     let abstainVisible = false;
     for (const pg of pages) {
-      if (await pg.getByText('Abstenerme').isVisible({ timeout: 8_000 }).catch(() => false)) {
+      if (await waitOptional(pg.getByText('Abstenerme'), 8_000)) {
         abstainVisible = true;
         break;
       }
@@ -166,16 +208,21 @@ test.describe('ClueCard — rediseño visual', () => {
     // Una vez iniciada, aparece "¡TU TURNO!" (activo) o "Escuchá" (espectando) o "VUELTA"
     await expect(pageHost.getByText(/TU TURNO|Escuchá|VUELTA/i)).toBeVisible({ timeout: 20_000 });
 
-    // El jugador activo da una pista reconocible
+    // El jugador activo da una pista reconocible (reintenta hasta que el turno
+    // propague reactivamente, igual que giveCluesOneRound).
     const clueText = 'Jugó en el Barça y ganó el Balón de Oro';
-    for (const pg of pages) {
-      if (await tryGiveClue(pg, clueText)) break;
+    for (let attempt = 0; attempt < pages.length * 4; attempt++) {
+      let given = false;
+      for (const pg of pages) {
+        if (await tryGiveClue(pg, clueText)) { given = true; break; }
+      }
+      if (given) break;
     }
 
     // La pista debe aparecer en pantalla de algún jugador
     let clueVisible = false;
     for (const pg of pages) {
-      if (await pg.getByText(clueText).isVisible({ timeout: 10_000 }).catch(() => false)) {
+      if (await waitOptional(pg.getByText(clueText), 10_000)) {
         clueVisible = true;
         break;
       }
@@ -198,11 +245,11 @@ test.describe('Reveal — abstención visible', () => {
     await expect(pageHost.getByText(/TU TURNO|Escuchá|VUELTA/i)).toBeVisible({ timeout: 20_000 });
 
     // Todos dan su pista para completar la vuelta
-    await giveCluesAllPlayers(pages, 'test');
+    await giveCluesAllPlayers(pages, pageHost, 'test');
 
     // Host abre votación
     const votingBtn = pageHost.getByText(/Abrir votación|Iniciar votación/i);
-    if (await votingBtn.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    if (await waitOptional(votingBtn)) {
       await votingBtn.click();
     }
 
@@ -210,7 +257,7 @@ test.describe('Reveal — abstención visible', () => {
     let abstained = false;
     for (const pg of pages) {
       const abstainBtn = pg.getByText('Abstenerme');
-      if (await abstainBtn.isVisible({ timeout: 8_000 }).catch(() => false)) {
+      if (await waitOptional(abstainBtn, 8_000)) {
         await abstainBtn.click();
         abstained = true;
         break;
@@ -237,7 +284,7 @@ test.describe('Reveal — abstención visible', () => {
 
     // Host revela (si no se auto-reveló)
     const revealBtn = pageHost.getByText(/Revelar resultado/i);
-    if (await revealBtn.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    if (await waitOptional(revealBtn)) {
       await revealBtn.click();
     }
 

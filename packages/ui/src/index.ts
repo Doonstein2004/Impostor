@@ -9,3 +9,4 @@ export type { ScreenProps } from './Screen';
 export { Badge } from './Badge';
 export type { BadgeProps } from './Badge';
 export { PrivacyPolicy } from './PrivacyPolicy';
+export { TermsOfService } from './TermsOfService';

@@ -40,6 +40,7 @@ function AppContent() {
           <Stack.Screen name="stats" options={{ title: 'Mis estadísticas', headerBackTitle: 'Volver' }} />
           <Stack.Screen name="leaderboard" options={{ title: 'Ranking', headerBackTitle: 'Volver' }} />
           <Stack.Screen name="privacy" options={{ title: 'Privacidad', headerBackTitle: 'Volver' }} />
+          <Stack.Screen name="terms" options={{ title: 'Términos de servicio', headerBackTitle: 'Volver' }} />
           <Stack.Screen name="tournament/create" options={{ title: 'Crear torneo', headerBackTitle: 'Volver' }} />
           <Stack.Screen name="tournament/[code]" options={{ title: 'Bracket', headerBackTitle: 'Volver' }} />
         </Stack>
