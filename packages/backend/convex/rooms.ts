@@ -8,6 +8,9 @@ import { assertOwnsIdentity } from './auth';
 const INACTIVE_KICK_MS = 3 * 60 * 1000; // 3 minutos
 const MAX_NAME_LEN = 30;
 const MAX_SPECTATORS = 20;
+/** Rate limit anti-spam: máx salas creadas por el mismo clientId por ventana de tiempo. */
+const CREATE_ROOM_RATE_LIMIT_MAX = 5;
+const CREATE_ROOM_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 
 /** Token opaco de sesión (no criptográficamente crítico, sólo debe ser no-adivinable). */
 function makeSessionToken(): string {
@@ -26,6 +29,19 @@ export const create = mutation({
   args: { clientId: v.string(), name: v.string(), color: v.optional(v.string()), password: v.optional(v.string()) },
   handler: async (ctx, { clientId, name, color, password }) => {
     const validName = validateName(name);
+
+    // Rate limit anti-spam: máx N salas por clientId en la ventana de tiempo.
+    const windowStart = Date.now() - CREATE_ROOM_RATE_LIMIT_WINDOW_MS;
+    const recentByHost = await ctx.db
+      .query('rooms')
+      .withIndex('by_host', (q) => q.eq('hostClientId', clientId))
+      .order('desc')
+      .take(20);
+    const recentCount = recentByHost.filter((r) => r.createdAt > windowStart).length;
+    if (recentCount >= CREATE_ROOM_RATE_LIMIT_MAX) {
+      throw new Error('Creaste demasiadas salas en poco tiempo, esperá unos minutos');
+    }
+
     // Genera un código único (reintenta ante colisión, muy improbable).
     let code = generateRoomCode();
     for (let i = 0; i < 5; i++) {

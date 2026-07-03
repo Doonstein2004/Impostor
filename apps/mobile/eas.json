@@ -17,7 +17,8 @@
       },
       "env": {
         "EXPO_PUBLIC_CONVEX_URL": "http://127.0.0.1:3210"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -29,7 +30,8 @@
       },
       "env": {
         "EXPO_PUBLIC_CONVEX_URL": "https://curious-sheep-977.convex.cloud"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -38,7 +40,8 @@
       },
       "env": {
         "EXPO_PUBLIC_CONVEX_URL": "https://shiny-hare-972.convex.cloud"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {

@@ -309,6 +309,25 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-03 (tanda 25) — EAS Update (OTA) + rate limit anti-spam en creación de salas
+
+- **EAS Update**: instalado `expo-updates` + `eas update:configure` (agrega `updates.url` y
+  `runtimeVersion: {policy: "appVersion"}` a `app.json`, y un `channel` por perfil de build en
+  `eas.json`: `development`/`preview`/`production`). Permite pushear cambios de JS/CSS
+  directo a los usuarios sin pasar por una revisión nueva de Play Store (útil para arreglar
+  bugs como el de la tanda 20 en minutos en vez de días).
+  - **Importante**: el AAB ya subido (versionCode 3, tanda 24) se compiló ANTES de instalar
+    `expo-updates`, así que no tiene capacidad de recibir OTA. Recién a partir del próximo
+    build (`eas build`) los updates van a llegar a los usuarios.
+  - Uso futuro: `eas update --branch production --message "..."` publica un update al canal
+    de producción sin generar un build nuevo.
+- **Rate limit en `rooms.create`**: máx 5 salas por `clientId` cada 10 minutos (mismo patrón
+  que el rate limit de `messages.send`, tanda 0). Nuevo índice `rooms.by_host` (`hostClientId`)
+  para poder contar salas recientes del mismo host eficientemente. Verificado con 6 llamadas
+  seguidas: las primeras 5 crean sala, la 6ª tira "Creaste demasiadas salas en poco tiempo,
+  esperá unos minutos" (agregado a `friendlyError`).
+  - **Requirió push a Convex** (índice nuevo) — hecho en dev y en prod.
+
 ### 2026-07-02 (tanda 24) — Separación de Convex dev/producción
 
 - **Por qué**: hasta ahora, `dev:curious-sheep-977` era simultáneamente el deployment para

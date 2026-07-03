@@ -65,7 +65,9 @@ export default defineSchema({
     /** Contraseña de la sala. Vacío/ausente = sala pública. */
     password: v.optional(v.string()),
     createdAt: v.number(),
-  }).index('by_code', ['code']),
+  })
+    .index('by_code', ['code'])
+    .index('by_host', ['hostClientId']),
 
   players: defineTable({
     roomId: v.id('rooms'),

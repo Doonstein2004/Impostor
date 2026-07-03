@@ -27,7 +27,10 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0b0f0e"
       },
-      "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"],
+      "permissions": [
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -38,7 +41,10 @@
               "host": "impostor-black-one.vercel.app"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -59,7 +65,8 @@
           "android": {
             "kotlinVersion": "2.1.20",
             "enableProguardInReleaseBuilds": true,
-            "shrinkResourcesInReleaseBuilds": true
+            "shrinkResourcesInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ]
@@ -76,6 +83,12 @@
         "projectId": "c462bae9-8a4c-4677-98d5-13d00f4b07e5"
       }
     },
-    "owner": "doonstein"
+    "owner": "doonstein",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c462bae9-8a4c-4677-98d5-13d00f4b07e5"
+    }
   }
 }
