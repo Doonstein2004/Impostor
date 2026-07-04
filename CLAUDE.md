@@ -344,7 +344,14 @@ el teclado tapaba el input del chat en Android; contenido cortado en pantalla.
   ganan los impostores. Es la regla clásica (empate = escape) y el voto cruzado de impostores
   es estrategia legítima. Pendiente de decisión del usuario si se cambia.
 - **Pendiente**: estos fixes de cliente (chat) requieren rebuild del AAB — el versionCode 3
-  subido a Play no tiene expo-updates, no puede recibir OTA.
+  subido a Play no tiene expo-updates, no puede recibir OTA. (Resuelto el mismo día:
+  versionCode 4 compilado y subido al track interno vía `eas build --auto-submit`.)
+- **Estado E2E tras esta tanda**: el bug del tutorial (tanda 26) sigue resuelto — ya no hay
+  fallos por pointer-interception. La suite completa da 9 passed / 4 failed: 2 son los
+  pre-existentes de `rooms.spec.ts` (contraseña, badge de límite) y 2 son fragilidad del
+  test `ClueCard`/`Reveal` bajo un dev server degradado (Metro se degrada tras ~10+ min de
+  suite; con server fresco pasan, a veces con retry). Endurecer esos 2 tests + los 2 de
+  rooms queda para una sesión de tests dedicada.
 
 ### 2026-07-03 (tanda 26) — Limpieza automática de datos, fix E2E tutorial, términos de servicio
 
