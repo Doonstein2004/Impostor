@@ -309,6 +309,31 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-03 (tanda 28) — E2E endurecidos: suite completa en verde (13/13)
+
+Se erradicaron las 3 causas raíz de la flakiness (no eran "timing del server", eran bugs
+de los tests):
+
+- **`locator.isVisible({timeout})` IGNORA el timeout** (opción deprecada de Playwright,
+  devuelve el estado instantáneo). `tryGiveClue` hacía 12 chequeos instantáneos en ~1s y se
+  rendía sin dar pista si la pantalla aún no montaba. Reemplazado por `waitFor` (espera real)
+  ahí y en los usos restantes (`startGame`, nombres en Reveal). Regla para futuros tests:
+  **nunca usar `isVisible({timeout})` para "esperar" algo** — solo para chequeo instantáneo.
+- **`getByText` matchea por substring**: `getByText('4')` matcheaba "844 pers. · 3r · 30s"
+  (y el código de sala si contiene un 4) antes que el chip de límite → clickeaba cualquier
+  cosa. Igual `'Guardar'` vs "+ Guardar actual". Fix: `{ exact: true }` en ambos.
+- **Strict mode violation por regex multi-match**: `/TU TURNO|Escuchá|VUELTA/i` matchea el
+  banner "¡TU TURNO!" Y el chip "Vuelta 1/3" a la vez → `expect(...).toBeVisible()` explota
+  con 2+ matches. Antes pasaba de casualidad (carrera: si un elemento renderizaba antes que
+  el otro durante el polling había 1 solo match); con server rápido ambos aparecen en el
+  mismo frame y falla determinísticamente. Fix: `.first()`.
+- **Bonus, bug real de la app** (`errors.ts`): el mensaje del backend "La sala está llena
+  (máx. N jugadores)" era pisado por el fallback genérico de `friendlyError` — el usuario
+  nunca veía el motivo. Agregado al passthrough. (Cambio JS → puede ir por OTA o en el
+  próximo build.)
+- Timeouts por test subidos (150–180s) porque `tryGiveClue` ahora espera de verdad.
+- Resultado: **13/13 passed** en corrida completa, sin retries.
+
 ### 2026-07-03 (tanda 27) — Fixes de la primera partida real (13 rondas, 6 jugadores)
 
 Feedback de campo: 2 de 6 jugadores fueron "expulsados aleatoriamente" durante la votación y

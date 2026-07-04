@@ -64,9 +64,9 @@ async function startGame(pageHost: Page) {
   await pageHost.getByText(/disponibles/).first().click();
 
   // Si el Lobby detecta jugadores "inactivos", muestra card de confirmación.
-  const confirmBtn = pageHost.getByText(/Empezar igual/);
-  if (await confirmBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await confirmBtn.first().click();
+  const confirmBtn = pageHost.getByText(/Empezar igual/).first();
+  if (await waitOptional(confirmBtn, 3_000)) {
+    await confirmBtn.click();
   }
 }
 
@@ -115,7 +115,14 @@ async function createAndJoin(browser: Browser, playerCount: number) {
  */
 async function tryGiveClue(pg: Page, text: string): Promise<boolean> {
   const input = pg.getByPlaceholder(/zurdo|Disimulá/i);
-  if (!(await input.isVisible({ timeout: 2_000 }).catch(() => false))) return false;
+  // OJO: locator.isVisible({timeout}) IGNORA el timeout (opción deprecada) y
+  // devuelve el estado instantáneo — con el server lento, 12 chequeos instantáneos
+  // terminaban en ~1s sin que nadie diera pista. waitFor sí espera de verdad.
+  try {
+    await input.waitFor({ state: 'visible', timeout: 2_500 });
+  } catch {
+    return false;
+  }
   await input.fill(text);
   await input.press('Enter');
   return true;
@@ -164,7 +171,7 @@ async function giveCluesAllPlayers(pages: Page[], pageHost: Page, text: string) 
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 test.describe('Flujo de juego — abstención', () => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
 
   test('botón Abstenerme visible en fase de votación', async ({ browser }) => {
     const { pages, contexts, pageHost } = await createAndJoin(browser, 3);
@@ -172,7 +179,7 @@ test.describe('Flujo de juego — abstención', () => {
     await startGame(pageHost);
 
     // Una vez iniciada, aparece "¡TU TURNO!" (activo) o "Escuchá" (espectando) o "VUELTA"
-    await expect(pageHost.getByText(/TU TURNO|Escuchá|VUELTA/i)).toBeVisible({ timeout: 20_000 });
+    await expect(pageHost.getByText(/TU TURNO|Escuchá|VUELTA/i).first()).toBeVisible({ timeout: 20_000 });
 
     // Todos los jugadores dan su pista (respetando el orden del juego)
     await giveCluesAllPlayers(pages, pageHost, 'pista test');
@@ -198,7 +205,7 @@ test.describe('Flujo de juego — abstención', () => {
 });
 
 test.describe('ClueCard — rediseño visual', () => {
-  test.setTimeout(120_000);
+  test.setTimeout(150_000);
 
   test('las pistas muestran barra de color a la izquierda', async ({ browser }) => {
     const { pages, contexts, pageHost } = await createAndJoin(browser, 3);
@@ -206,7 +213,7 @@ test.describe('ClueCard — rediseño visual', () => {
     await startGame(pageHost);
 
     // Una vez iniciada, aparece "¡TU TURNO!" (activo) o "Escuchá" (espectando) o "VUELTA"
-    await expect(pageHost.getByText(/TU TURNO|Escuchá|VUELTA/i)).toBeVisible({ timeout: 20_000 });
+    await expect(pageHost.getByText(/TU TURNO|Escuchá|VUELTA/i).first()).toBeVisible({ timeout: 20_000 });
 
     // El jugador activo da una pista reconocible (reintenta hasta que el turno
     // propague reactivamente, igual que giveCluesOneRound).
@@ -234,7 +241,7 @@ test.describe('ClueCard — rediseño visual', () => {
 });
 
 test.describe('Reveal — abstención visible', () => {
-  test.setTimeout(150_000);
+  test.setTimeout(180_000);
 
   test('las abstenciones aparecen en la pantalla de resultado', async ({ browser }) => {
     const { pages, contexts, pageHost } = await createAndJoin(browser, 3);
@@ -242,7 +249,7 @@ test.describe('Reveal — abstención visible', () => {
     await startGame(pageHost);
 
     // Una vez iniciada, aparece "¡TU TURNO!" (activo) o "Escuchá" (espectando) o "VUELTA"
-    await expect(pageHost.getByText(/TU TURNO|Escuchá|VUELTA/i)).toBeVisible({ timeout: 20_000 });
+    await expect(pageHost.getByText(/TU TURNO|Escuchá|VUELTA/i).first()).toBeVisible({ timeout: 20_000 });
 
     // Todos dan su pista para completar la vuelta
     await giveCluesAllPlayers(pages, pageHost, 'test');
@@ -275,7 +282,7 @@ test.describe('Reveal — abstención visible', () => {
     for (const pg of pages) {
       for (const name of ['Host', 'P2', 'P3']) {
         const nameEl = pg.getByText(name).first();
-        if (await nameEl.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        if (await waitOptional(nameEl, 3_000)) {
           await nameEl.click().catch(() => {});
           break;
         }
@@ -289,7 +296,7 @@ test.describe('Reveal — abstención visible', () => {
     }
 
     // En el reveal debe verse la sección de abstenciones
-    await expect(pageHost.getByText(/abstuvieron|abstuvo/i)).toBeVisible({ timeout: 15_000 });
+    await expect(pageHost.getByText(/abstuvieron|abstuvo/i).first()).toBeVisible({ timeout: 15_000 });
 
     for (const ctx of contexts) await ctx.close();
   });

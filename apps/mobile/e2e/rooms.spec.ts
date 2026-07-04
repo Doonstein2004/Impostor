@@ -100,14 +100,14 @@ test.describe('Sala con contraseña', () => {
     await addPwButton.click();
 
     // El input de contraseña en el Lobby tiene placeholder "Contraseña".
-    const pwInput = pageHost.getByPlaceholder('Contraseña');
-    await expect(pwInput).toBeVisible({ timeout: 5_000 });
+    const pwInput = pageHost.getByPlaceholder('Contraseña').first();
+    await expect(pwInput).toBeVisible({ timeout: 10_000 });
     await pwInput.fill('clave123');
-    // Hay dos "Guardar" en el lobby (contraseña y presets). Usamos el primero.
-    await pageHost.getByText('Guardar').first().click();
+    // exact:true para no matchear por substring el "+ Guardar actual" de presets.
+    await pageHost.getByText('Guardar', { exact: true }).first().click();
 
-    // Confirmar que quedó protegida.
-    await expect(pageHost.getByText(/Con contraseña|Cambiar/i)).toBeVisible({ timeout: 8_000 });
+    // Confirmar que quedó protegida (roundtrip de la mutation a Convex).
+    await expect(pageHost.getByText(/Con contraseña|Cambiar/i).first()).toBeVisible({ timeout: 15_000 });
 
     // Jugador intenta unirse SIN contraseña → debe aparecer el campo de pw en el home.
     const ctxPlayer = await browser.newContext();
@@ -116,7 +116,7 @@ test.describe('Sala con contraseña', () => {
     await pagePlayer.getByPlaceholder('Ej. Dani').fill('PlayerPw');
     await pagePlayer.getByPlaceholder('ABC123').fill(code);
     await pagePlayer.getByText('Unirme').click();
-    await expect(pagePlayer.getByPlaceholder('Ingresá la contraseña')).toBeVisible({ timeout: 8_000 });
+    await expect(pagePlayer.getByPlaceholder('Ingresá la contraseña')).toBeVisible({ timeout: 15_000 });
 
     // Reintenta CON contraseña → entra al lobby.
     await pagePlayer.getByPlaceholder('Ingresá la contraseña').fill('clave123');
@@ -137,15 +137,19 @@ test.describe('Límite de jugadores', () => {
     const pageHost = await ctxHost.newPage();
     const code = await fillNameAndCreate(pageHost, 'HostLimit');
 
-    // Las opciones de maxPlayers son [4, 5, 6, 8, 10]. "4" solo aparece en el chip de
-    // Límite de jugadores (Rondas usa emojis, Impostores muestra "N imp.").
-    // Pressable sin role="button" → getByRole no lo encuentra; usamos getByText + .first().
-    const chip4 = pageHost.getByText('4').first();
+    // OJO: getByText('4') SIN exact hace matching por substring — matchea
+    // "844 pers. · 3r · 30s" (el resumen de config) y hasta el código de sala si
+    // contiene un 4, así que .first() clickeaba cualquier cosa. Con exact:true
+    // solo matchea el chip "4" de Límite de jugadores (las otras secciones no
+    // tienen un nodo de texto que sea exactamente "4": Rondas usa 1/2/3/5/∞,
+    // Impostores usa "N imp.").
+    const chip4 = pageHost.getByText('4', { exact: true }).first();
+    await chip4.waitFor({ state: 'visible', timeout: 10_000 });
     await chip4.scrollIntoViewIfNeeded();
     await chip4.click();
 
-    // El badge debe actualizarse de "1/10" a "1/4".
-    await expect(pageHost.getByText('1/4')).toBeVisible({ timeout: 8_000 });
+    // El badge debe actualizarse de "1/10" a "1/4" (roundtrip de config a Convex).
+    await expect(pageHost.getByText('1/4')).toBeVisible({ timeout: 15_000 });
 
     // Jugadores 2–4 entran (quedan espacios).
     const extraCtxs = [];
