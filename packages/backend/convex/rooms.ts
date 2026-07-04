@@ -5,7 +5,14 @@ import { internal } from './_generated/api';
 import { gameConfigValidator } from './schema';
 import { assertOwnsIdentity } from './auth';
 
-const INACTIVE_KICK_MS = 3 * 60 * 1000; // 3 minutos
+/**
+ * Auto-kick por desconexión. OJO: en mobile, "desconectado" incluye bloquear la
+ * pantalla o cambiar de app (AppState background) — cosa normalísima en una
+ * partida presencial mientras otros hablan. Con 3 minutos, jugadores reales
+ * fueron expulsados "aleatoriamente" en medio de la votación (tanda 27). Por eso:
+ * 10 minutos, y solo durante la fase de pistas (ver updatePresence/autoKickCheck).
+ */
+const INACTIVE_KICK_MS = 10 * 60 * 1000;
 const MAX_NAME_LEN = 30;
 const MAX_SPECTATORS = 20;
 /** Rate limit anti-spam: máx salas creadas por el mismo clientId por ventana de tiempo. */
@@ -90,7 +97,6 @@ export const join = mutation({
       .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
       .first();
     if (!room) throw new Error('Sala no encontrada');
-    if (room.status !== 'lobby') throw new Error('La partida ya empezó');
 
     const existing = await ctx.db
       .query('players')
@@ -100,6 +106,37 @@ export const join = mutation({
     if (existing) {
       await ctx.db.patch(existing._id, { connected: true, name: validName, ...(color ? { color } : {}) });
       return { roomId: room._id, code: room.code };
+    }
+
+    if (room.status !== 'lobby') {
+      // Re-ingreso a mitad de partida: si este clientId tiene una asignación en la
+      // ronda actual, era parte de esta partida (lo expulsó el auto-kick o se le
+      // cerró la app) — dejarlo volver como jugador para que pueda seguir/votar.
+      // El score de la sesión se pierde (vivía en la fila borrada); mal menor
+      // frente a quedar afuera hasta que termine la ronda.
+      const wasInRound = room.currentRoundId
+        ? await ctx.db
+            .query('assignments')
+            .withIndex('by_round_client', (q) =>
+              q.eq('roundId', room.currentRoundId!).eq('clientId', clientId),
+            )
+            .first()
+        : null;
+      if (!wasInRound) throw new Error('La partida ya empezó');
+
+      const sessionToken = makeSessionToken();
+      await ctx.db.insert('players', {
+        roomId: room._id,
+        clientId,
+        name: validName,
+        isHost: false,
+        color,
+        sessionToken,
+        connected: true,
+        score: 0,
+        joinedAt: Date.now(),
+      });
+      return { roomId: room._id, code: room.code, sessionToken };
     }
 
     // Validaciones para nuevos jugadores
@@ -278,10 +315,13 @@ export const updatePresence = mutation({
     if (!player) return;
     await ctx.db.patch(player._id, { connected, lastActiveAt: Date.now() });
 
-    // Si se desconecta durante una partida activa, programar verificación de auto-kick
+    // Si se desconecta durante la fase de pistas, programar verificación de auto-kick.
+    // SOLO en 'playing': es la única fase donde un desconectado bloquea el flujo
+    // (su turno). La votación tiene timer + reveal manual del host como respaldo,
+    // así que expulsar ahí solo causa daño (jugadores reales perdieron su voto).
     if (!connected) {
       const room = await ctx.db.get(roomId);
-      if (room && room.status !== 'lobby' && room.status !== 'finished') {
+      if (room && room.status === 'playing') {
         await ctx.scheduler.runAfter(INACTIVE_KICK_MS, internal.rooms.autoKickCheck, {
           roomId,
           clientId,
@@ -375,7 +415,9 @@ export const autoKickCheck = internalMutation({
   handler: async (ctx, { roomId, clientId, disconnectedAt }) => {
     const room = await ctx.db.get(roomId);
     if (!room) return;
-    if (room.status === 'lobby' || room.status === 'finished') return;
+    // Solo expulsar durante la fase de pistas: si para cuando este check corre la
+    // sala ya pasó a votación/reveal/lobby, el jugador ya no bloquea nada.
+    if (room.status !== 'playing') return;
 
     const player = await ctx.db
       .query('players')

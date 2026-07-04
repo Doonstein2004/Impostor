@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 import { useSession } from '@/lib/session';
 import { useChatDock } from '@/lib/useChatDock';
@@ -70,6 +71,9 @@ export function GameChat({ room }: { room: RoomView }) {
   const { width } = useWindowDimensions();
   const sideMode = Platform.OS === 'web' && width >= SIDE_MODE_MIN_WIDTH;
   const setDockHeight = useChatDock((s) => s.setHeight);
+  // Edge-to-edge (Android 15+): el overlay llega al borde físico de la pantalla,
+  // así que hay que apartar la barra de gestos/navegación a mano.
+  const insets = useSafeAreaInsets();
 
   // En modo panel lateral el chat no ocupa espacio inferior; al desmontar, reset.
   useEffect(() => {
@@ -298,7 +302,10 @@ export function GameChat({ room }: { room: RoomView }) {
   return (
     <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}>
       <View pointerEvents="box-none" style={[{ flex: 1, justifyContent: 'flex-end' }, overlayStyle]}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* behavior "padding" también en Android: con edge-to-edge el sistema NO
+            redimensiona la ventana (adjustResize del manifest se ignora), así que
+            sin esto el teclado tapa el input y no se ve lo que se escribe. */}
+        <KeyboardAvoidingView behavior="padding">
           <Animated.View
             entering={FadeInUp.springify().damping(20)}
             onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}
@@ -307,6 +314,7 @@ export function GameChat({ room }: { room: RoomView }) {
               borderTopLeftRadius: 18, borderTopRightRadius: 18,
               borderWidth: 1, borderColor: '#27272a',
               overflow: 'hidden',
+              paddingBottom: insets.bottom,
             }}
           >
             {/* Historial (al expandir) */}

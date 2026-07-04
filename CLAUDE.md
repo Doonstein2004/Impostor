@@ -309,6 +309,43 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-03 (tanda 27) — Fixes de la primera partida real (13 rondas, 6 jugadores)
+
+Feedback de campo: 2 de 6 jugadores fueron "expulsados aleatoriamente" durante la votación y
+no pudieron volver hasta que terminó la ronda (ni siquiera como espectadores, según relato);
+el teclado tapaba el input del chat en Android; contenido cortado en pantalla.
+
+- **Expulsiones "aleatorias" = auto-kick por presencia**: en mobile, "desconectado" incluye
+  bloquear la pantalla o irse a otra app (AppState background) — normalísimo en partida
+  presencial mientras otros discuten. A los 3 minutos, `autoKickCheck` los borraba de la sala
+  aunque la fase fuera votación. Y una vez borrada la fila de `players`, `rooms.join` los
+  rechazaba con "La partida ya empezó" hasta volver al lobby. Fixes (backend, pusheado a dev
+  y prod):
+  - `INACTIVE_KICK_MS` 3 → 10 minutos.
+  - Auto-kick SOLO durante `playing` (única fase donde un desconectado bloquea el flujo — su
+    turno; además el host tiene "SALTAR TURNO"). La votación tiene timer y reveal manual como
+    respaldo; ahí expulsar solo causa daño. Chequeado tanto al programar (`updatePresence`)
+    como al disparar (`autoKickCheck`), porque el check programado puede correr cuando la
+    fase ya cambió.
+  - **Re-ingreso a mitad de partida** (`rooms.join`): si el clientId tiene una asignación en
+    la ronda actual (`assignments.by_round_client`), era parte de esta partida → se lo
+    reinserta como jugador con `sessionToken` nuevo (puede ver su carta y votar). Sin
+    contraseña (la asignación prueba membresía). El score de la sesión se pierde (vivía en la
+    fila borrada) — mal menor. Desconocidos sin asignación siguen bloqueados. Verificado
+    end-to-end vía `convex run`: kick a mitad de ronda → rejoin OK → `getMyCard` OK con el
+    token nuevo → extraño rechazado.
+- **Teclado tapaba el chat (Android)**: `KeyboardAvoidingView` solo tenía `behavior` en iOS;
+  en Android confiaba en `adjustResize` del manifest, que con edge-to-edge (targetSdk 36 /
+  Android 15) se ignora. Ahora `behavior="padding"` en ambas plataformas. Además el dock del
+  chat llegaba al borde físico de la pantalla (debajo de la barra de gestos): se agregó
+  `paddingBottom: insets.bottom` (probable causa del "se ve cortado" del feedback).
+- **Empate en votación (consulta de diseño, no bug)**: con 2 impostores, ambos empataron en
+  2 votos (los impostores votaron cruzado) → `tallyVotes` marca `tie` → nadie expulsado →
+  ganan los impostores. Es la regla clásica (empate = escape) y el voto cruzado de impostores
+  es estrategia legítima. Pendiente de decisión del usuario si se cambia.
+- **Pendiente**: estos fixes de cliente (chat) requieren rebuild del AAB — el versionCode 3
+  subido a Play no tiene expo-updates, no puede recibir OTA.
+
 ### 2026-07-03 (tanda 26) — Limpieza automática de datos, fix E2E tutorial, términos de servicio
 
 - **Limpieza automática de salas viejas** (`convex/cleanup.ts` + `convex/crons.ts`): cron diario
