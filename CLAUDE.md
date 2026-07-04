@@ -309,6 +309,24 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-03 (tanda 29) — Primer OTA publicado + fix de env en EAS
+
+- **Primer `eas update` real** (branch/canal `production`, runtime 0.1.0 → aplica a builds
+  versionCode ≥ 4): lleva el fix de "La sala está llena" visible al usuario (tanda 28).
+  Update group `34b90fa8-29c7-45ac-a09d-bba6dca0bc79`, commit `c69e290`.
+- **Trampa descubierta y corregida**: el ambiente "production" de EAS (env vars en expo.dev,
+  las que usa `eas update --environment production` para bundlear) todavía tenía
+  `EXPO_PUBLIC_CONVEX_URL` apuntando al Convex de DEV — quedó de antes de la separación
+  dev/prod (tanda 24; los builds se salvaban porque el `env` de `eas.json` tiene precedencia,
+  pero `eas update` NO lee ese `env`). Corregido con `eas env:update production`. **Checklist
+  al cambiar env vars públicas**: hay CUATRO lugares — `apps/mobile/.env` (local),
+  `eas.json` (builds), ambiente EAS (updates OTA), y Vercel por scope (web).
+- **Verificación del bundle publicado**: `eas update` deja `dist/` local; se grepeó el `.hbc`
+  de Android — embebe SOLO `shiny-hare-972` (prod). Verificar esto en cada OTA.
+- **Cómo publicar un OTA** (para próximas veces):
+  `EXPO_PUBLIC_CONVEX_URL=https://shiny-hare-972.convex.cloud npx eas-cli update --branch production --environment production --message "..."`
+  (la env var inline es doble seguro contra el `.env` local, que apunta a dev).
+
 ### 2026-07-03 (tanda 28) — E2E endurecidos: suite completa en verde (13/13)
 
 Se erradicaron las 3 causas raíz de la flakiness (no eran "timing del server", eran bugs
