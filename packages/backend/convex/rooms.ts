@@ -1,18 +1,9 @@
 import { DEFAULT_CONFIG, generateRoomCode } from '@impostor/core';
 import { v } from 'convex/values';
-import { internalMutation, mutation, query } from './_generated/server';
-import { internal } from './_generated/api';
+import { mutation, query } from './_generated/server';
 import { gameConfigValidator } from './schema';
 import { assertOwnsIdentity } from './auth';
 
-/**
- * Auto-kick por desconexión. OJO: en mobile, "desconectado" incluye bloquear la
- * pantalla o cambiar de app (AppState background) — cosa normalísima en una
- * partida presencial mientras otros hablan. Con 3 minutos, jugadores reales
- * fueron expulsados "aleatoriamente" en medio de la votación (tanda 27). Por eso:
- * 10 minutos, y solo durante la fase de pistas (ver updatePresence/autoKickCheck).
- */
-const INACTIVE_KICK_MS = 10 * 60 * 1000;
 const MAX_NAME_LEN = 30;
 const MAX_SPECTATORS = 20;
 /** Rate limit anti-spam: máx salas creadas por el mismo clientId por ventana de tiempo. */
@@ -314,21 +305,12 @@ export const updatePresence = mutation({
       .first();
     if (!player) return;
     await ctx.db.patch(player._id, { connected, lastActiveAt: Date.now() });
-
-    // Si se desconecta durante la fase de pistas, programar verificación de auto-kick.
-    // SOLO en 'playing': es la única fase donde un desconectado bloquea el flujo
-    // (su turno). La votación tiene timer + reveal manual del host como respaldo,
-    // así que expulsar ahí solo causa daño (jugadores reales perdieron su voto).
-    if (!connected) {
-      const room = await ctx.db.get(roomId);
-      if (room && room.status === 'playing') {
-        await ctx.scheduler.runAfter(INACTIVE_KICK_MS, internal.rooms.autoKickCheck, {
-          roomId,
-          clientId,
-          disconnectedAt: Date.now(),
-        });
-      }
-    }
+    // Ya NO se auto-expulsa a nadie por desconexión (ver tanda 30 en CLAUDE.md):
+    // el timer (bajado de 3 a 10 min en tanda 27) seguía expulsando a jugadores
+    // reales en partidas presenciales sin avisarles por qué, y sin forma de volver
+    // a tiempo. El host ya tiene "SALTAR TURNO" (para el turno de alguien
+    // desconectado) y expulsar a mano (✕) — cubren el mismo caso sin el riesgo de
+    // sacar a alguien que solo bloqueó la pantalla un rato.
   },
 });
 
@@ -398,53 +380,5 @@ export const updatePassword = mutation({
     const trimmed = password?.trim() ?? '';
     if (trimmed.length > 50) throw new Error('La contraseña es muy larga (máx. 50 caracteres)');
     await ctx.db.patch(roomId, { password: trimmed || '' });
-  },
-});
-
-/**
- * Verificación programada: si el jugador sigue desconectado INACTIVE_KICK_MS
- * después de perder la conexión durante una partida activa, se lo expulsa.
- * No actúa si ya reconectó, si la sala volvió al lobby, o si ya no existe.
- */
-export const autoKickCheck = internalMutation({
-  args: {
-    roomId: v.id('rooms'),
-    clientId: v.string(),
-    disconnectedAt: v.number(),
-  },
-  handler: async (ctx, { roomId, clientId, disconnectedAt }) => {
-    const room = await ctx.db.get(roomId);
-    if (!room) return;
-    // Solo expulsar durante la fase de pistas: si para cuando este check corre la
-    // sala ya pasó a votación/reveal/lobby, el jugador ya no bloquea nada.
-    if (room.status !== 'playing') return;
-
-    const player = await ctx.db
-      .query('players')
-      .withIndex('by_room_client', (q) => q.eq('roomId', roomId).eq('clientId', clientId))
-      .first();
-    if (!player) return;
-
-    // Si el jugador ya reconectó después de la desconexión que disparó este check, no hacer nada
-    if (player.connected) return;
-    if ((player.lastActiveAt ?? 0) > disconnectedAt) return;
-
-    // Expulsar al jugador inactivo
-    await ctx.db.delete(player._id);
-
-    // Si era el host, transferir
-    if (room.hostClientId === clientId) {
-      const remaining = await ctx.db
-        .query('players')
-        .withIndex('by_room', (q) => q.eq('roomId', roomId))
-        .collect();
-      if (remaining.length === 0) {
-        await ctx.db.delete(roomId);
-        return;
-      }
-      const next = remaining.sort((a, b) => a.joinedAt - b.joinedAt)[0]!;
-      await ctx.db.patch(roomId, { hostClientId: next.clientId });
-      await ctx.db.patch(next._id, { isHost: true });
-    }
   },
 });

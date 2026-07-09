@@ -309,6 +309,32 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-03 (tanda 30) — Eliminado el auto-kick por completo
+
+Segunda tanda de feedback de campo (mismo grupo de amigos, más partidas jugadas): el ajuste
+de la tanda 27 (3→10 min, solo en fase de pistas) **no fue suficiente** — seguían siendo
+expulsados sin explicación y sin poder volver a tiempo. Decisión: en vez de seguir ajustando
+el timer, **se eliminó el auto-kick por desconexión por completo** (`updatePresence` ya no
+programa `autoKickCheck`; la función se borró junto con `INACTIVE_KICK_MS` y el import de
+`internal`/`internalMutation` que quedaron sin uso en `rooms.ts`).
+
+- **Por qué era la decisión correcta y no un parche más**: el único motivo para auto-expulsar
+  era destrabar una sala si alguien se desconectaba en medio de su turno. Pero ese caso ya
+  está cubierto por dos herramientas manuales que el host ya tenía: **"SALTAR TURNO"** (salta
+  el turno de quien no responde, sin sacarlo de la sala) y **expulsar a mano (✕)** en el
+  roster. El auto-kick automático era el único camino por el que alguien podía desaparecer de
+  la sala SIN que nadie lo pidiera — exactamente lo que rompía la experiencia real.
+- **El aviso de expulsión ya existe y ahora es preciso**: `room/[code].tsx` detecta cuando un
+  jugador presente deja de figurar en `players` (sin haber salido por voluntad propia) y
+  muestra "Te expulsaron de la sala 👋" al volver al home (tanda 9). Con el auto-kick fuera de
+  juego, ese aviso solo puede disparar por una expulsión real del host — deja de ser un
+  misterio.
+- El fix de re-ingreso a mitad de partida (tanda 27, `rooms.join` acepta volver si hay una
+  `assignment` en la ronda actual) se mantiene como red de seguridad para expulsiones
+  legítimas del host o cierres de la app.
+- **Requirió push a Convex** (dev y prod) — es lógica de backend pura, aplica de inmediato a
+  todos los jugadores sin importar la versión de la app que tengan instalada.
+
 ### 2026-07-03 (tanda 29) — Primer OTA publicado + fix de env en EAS
 
 - **Primer `eas update` real** (branch/canal `production`, runtime 0.1.0 → aplica a builds
