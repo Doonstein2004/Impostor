@@ -331,11 +331,25 @@ pnpm --filter @impostor/mobile run export
   `eas.json` (committeado).
   - **Fuente de verdad de este DSN es lo que el usuario pegó en el chat** (proyecto ya creado
     a mano en sentry.io, plataforma "React Native", solo con "Error monitoring" tildado).
-- **Pendiente real**: no se configuró subida de source maps (necesita `SENTRY_AUTH_TOKEN`,
-  otro paso manual en sentry.io → Settings → Auth Tokens). Sin eso, los stack traces en el
-  dashboard van a mostrar código minificado en vez del original — funciona igual para saber
-  QUE algo se rompió, pero cuesta más leer DÓNDE. Se puede agregar después sin tocar nada más.
 - **Requiere build nuevo** (toca código nativo vía el plugin) — no va por OTA.
+- **Trampa real descubierta en el primer build**: el plugin de Sentry para Gradle **no salta
+  la subida de source maps si falta el auth token — rompe el build entero** con "Auth token
+  is required for this request." (no es un warning, es un `FAILURE` que tira abajo todo el
+  `bundleRelease`/`app-bundle`). Reproducido en local antes de gastar otro build en la nube
+  (`gradlew bundleRelease` en `apps/mobile/android`, tras `expo prebuild --clean`). Fix:
+  `SENTRY_DISABLE_AUTO_UPLOAD=true` en el `env` del perfil — hace que la tarea de subida se
+  saltee en vez de fallar (variable que lee `sentry.gradle` directamente, confirmado leyendo
+  su fuente en `node_modules`).
+- **Source maps activados** (mismo día): usuario creó un Organization Token en sentry.io
+  (Settings → Developer Settings → Organization Tokens, scope `org:ci` — ya agrupa Source Map
+  Upload + Release Creation + Code Mappings). Guardado como `SENTRY_AUTH_TOKEN` en el ambiente
+  `production` de EAS con `--visibility secret` (a diferencia del DSN, este SÍ es sensible —
+  permite subir/borrar datos de la cuenta de Sentry — nunca va a `eas.json` ni a git).
+  Verificado con `eas env:list`: aparece como "solo accesible en el builder de EAS, no se
+  puede leer en ninguna UI" — exactamente el comportamiento esperado para un secreto de
+  build. Se sacó `SENTRY_DISABLE_AUTO_UPLOAD` solo del perfil `production` (dev/preview lo
+  mantienen, no tienen el token cargado — si alguna vez se necesitan stack traces legibles
+  ahí también, hay que repetir el mismo `eas env:create` para esos ambientes).
 
 ### 2026-07-03 (tanda 30) — Eliminado el auto-kick por completo
 

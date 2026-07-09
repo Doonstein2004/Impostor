@@ -44,8 +44,7 @@
       },
       "env": {
         "EXPO_PUBLIC_CONVEX_URL": "https://shiny-hare-972.convex.cloud",
-        "EXPO_PUBLIC_SENTRY_DSN": "https://3b4e7e94f82242e839dd48dc428eccc4@o4511705831309312.ingest.us.sentry.io/4511705843105792",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "EXPO_PUBLIC_SENTRY_DSN": "https://3b4e7e94f82242e839dd48dc428eccc4@o4511705831309312.ingest.us.sentry.io/4511705843105792"
       },
       "channel": "production"
     }
