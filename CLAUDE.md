@@ -309,6 +309,34 @@ pnpm --filter @impostor/mobile run export
 
 ## Historial de cambios importantes
 
+### 2026-07-03 (tanda 31) — Sentry (reporte de errores en producción)
+
+- **Por qué**: dos tandas seguidas de bugs reales (auto-kick, chat tapado) solo se detectaron
+  porque el usuario jugó con amigos y avisó por WhatsApp — cero visibilidad automática de
+  errores en producción hasta ahora.
+- **Instalación**: `@sentry/react-native` + plugin de Expo `@sentry/react-native/expo`
+  (config: org `doonbro`, proyecto `react-native`) en `app.json`. `initSentry()`
+  (`src/lib/sentry.ts`) se llama al arrancar `_layout.tsx`; no hace nada si no hay
+  `EXPO_PUBLIC_SENTRY_DSN` seteado (no rompe dev local sin `.env`).
+  - `environment: __DEV__ ? 'development' : 'production'` — separa igual que Convex, para
+    que los errores mientras programás no ensucien el panel de la app real.
+  - `ErrorBoundary.componentDidCatch` ahora también manda el error a Sentry (antes solo
+    `console.error`, invisible para cualquiera que no tuviera el dispositivo conectado).
+  - `tracesSampleRate: 0`: solo error monitoring por ahora, sin performance tracing (evita
+    consumir cuota del plan gratis en algo que no pedimos).
+- **DSN en los mismos 4 lugares que las URLs de Convex/Vercel** (ver tanda 24): `.env` local,
+  las tres `env` de `eas.json`, y el ambiente `production` de EAS (`eas env:create`, para que
+  `eas update` también lo tenga). El DSN de Sentry no es secreto — a diferencia de una API
+  key, solo permite *mandar* eventos, no leer nada — así que no hay problema en que quede en
+  `eas.json` (committeado).
+  - **Fuente de verdad de este DSN es lo que el usuario pegó en el chat** (proyecto ya creado
+    a mano en sentry.io, plataforma "React Native", solo con "Error monitoring" tildado).
+- **Pendiente real**: no se configuró subida de source maps (necesita `SENTRY_AUTH_TOKEN`,
+  otro paso manual en sentry.io → Settings → Auth Tokens). Sin eso, los stack traces en el
+  dashboard van a mostrar código minificado en vez del original — funciona igual para saber
+  QUE algo se rompió, pero cuesta más leer DÓNDE. Se puede agregar después sin tocar nada más.
+- **Requiere build nuevo** (toca código nativo vía el plugin) — no va por OTA.
+
 ### 2026-07-03 (tanda 30) — Eliminado el auto-kick por completo
 
 Segunda tanda de feedback de campo (mismo grupo de amigos, más partidas jugadas): el ajuste

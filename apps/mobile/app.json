@@ -69,6 +69,13 @@
             "enableMinifyInReleaseBuilds": true
           }
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "doonbro",
+          "project": "react-native"
+        }
       ]
     ],
     "experiments": {

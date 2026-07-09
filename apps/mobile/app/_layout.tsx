@@ -12,7 +12,10 @@ import { Uniwind } from 'uniwind';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toast } from '@/components/Toast';
 import { convex } from '@/lib/convex';
+import { initSentry } from '@/lib/sentry';
 import { useSession } from '@/lib/session';
+
+initSentry();
 
 function AppContent() {
   const insets = useSafeAreaInsets();
