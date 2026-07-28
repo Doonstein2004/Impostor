@@ -162,6 +162,7 @@ interface GameConfig {
   maxRounds?                  // rondas por sesión (0 = sin límite)
   maxClueRounds?              // vueltas de pistas por partida (0 = sin límite)
   voteSeconds?                // segundos para votar (0 = sin límite)
+  tieRule?                    // 'escape' | 'revote' — qué pasa si la votación empata
 }
 ```
 
@@ -308,6 +309,82 @@ pnpm --filter @impostor/mobile run export
   - Sin estos datos el modo audio muestra "Audio no configurado" (no rompe nada).
 
 ## Historial de cambios importantes
+
+### 2026-07-28 (tanda 33) — Imágenes de personajes (Wikipedia API) + fix del chat responsivo
+
+- **Imágenes de personajes**: todos los personajes ahora pueden mostrar foto sin necesidad de
+  hardcodear URLs uno a uno. El componente `CharacterImage.tsx` tiene una estrategia de 3 niveles:
+  1. Si el personaje tiene `imageUrl` hardcodeada (Wikimedia Commons, CC BY-SA), la usa.
+  2. Si no, busca automáticamente la thumbnail desde la **API REST de Wikipedia**
+     (`/api/rest_v1/page/summary/{fullName}`) — las imágenes son de dominio público o CC BY-SA.
+  3. Si todo falla, muestra un fallback con las iniciales sobre fondo esmeralda.
+  - Cache en memoria (`Map`) por `fullName` para no repetir fetches en la misma sesión.
+  - Se agregó `imageUrl?: string` al tipo `Character` en `@impostor/core` (propiedad opcional,
+    no rompe nada existente).
+  - Se pasa `fullName` como prop al componente en `GameRound.tsx` (PokerCard + MyCardStrip) y
+    `Reveal.tsx` para que la búsqueda en Wikipedia funcione.
+  - 5 personajes de ejemplo tienen `imageUrl` hardcodeada en `players.ts` (Pelé, Maradona,
+    Cruyff, Beckenbauer, Van Basten) como demostración de la prioridad 1.
+  - **Licencias**: solo se usan imágenes de Wikipedia (dominio público o CC BY-SA). No se
+    descargan ni redistribuyen — se referencian por URL. Atribución implícita vía Wikipedia.
+
+- **Fix del chat responsivo** (3 problemas corregidos en `Chat.tsx`):
+  - **Panel lateral se activaba en pantallas de ~820px**: el umbral `SIDE_MODE_MIN_WIDTH` subido
+    de 820 → **1200px** — el panel lateral solo aparece en pantallas realmente anchas (monitores).
+  - **No se podía ocultar**: agregado estado `sidePanelVisible` con botón ✕ en el header del panel
+    y botón flotante 💬 (con badge de no leídos) para reabrirlo.
+  - **Barra inferior se sobreponía al juego**: restaurado el layout original con
+    `position: 'absolute', top: 0, bottom: 0` + `justifyContent: 'flex-end'` que ancla
+    correctamente al fondo sin cubrir el contenido del juego.
+
+- **No requiere push a Convex** — todos los cambios son de frontend (JS). Puede ir por OTA
+  (`eas update`) sin build nuevo.
+
+### 2026-07-28 (tanda 32) — Desempate en la votación (`tieRule`) + fix del auto-skip de turno
+
+- **Cierra la decisión que quedó abierta en la tanda 27**: con 2 impostores votando cruzado, la
+  votación empataba, `tallyVotes` marcaba `tie`, no se expulsaba a nadie y los impostores
+  ganaban la ronda sin pasar siquiera por la adivinanza. Era la regla clásica (empate = escape),
+  pero en la práctica convertía el empate fabricado en la jugada dominante del equipo impostor.
+  El usuario eligió **desempate** entre las tres alternativas planteadas (desempate / doble
+  expulsión / prohibir el voto entre impostores).
+- **`tieRule: 'escape' | 'revote'`** en `GameConfig`, con selector en la tab "Reglas" del Lobby.
+  - `'revote'`: al empatar se **reabre la votación sólo entre los empatados**, con el timer
+    reiniciado y los votos de la vuelta anterior borrados. Si el desempate vuelve a empatar,
+    ahí sí escapan los impostores.
+  - `'escape'`: comportamiento histórico.
+  - **Ausente = `'escape'`**, a propósito: las salas creadas antes de este cambio no cambian de
+    reglas en medio de una sesión. `DEFAULT_CONFIG` sí trae `'revote'`, así que toda sala nueva
+    arranca con la regla corregida. Los `GAME_MODES` lo declaran explícito: Rápido usa
+    `'escape'` (el desempate agrega una vuelta y va contra el espíritu del modo), el resto
+    `'revote'`.
+- **El desempate se ofrece UNA sola vez por ronda** (`voteRound < 2`). Sin ese tope, dos
+  impostores podrían empatar indefinidamente y dejar la ronda colgada para siempre.
+- **La decisión vive en `packages/core`** (`resolveVoteOutcome`, devuelve
+  `eject | tiebreak | escape`), no dentro de la mutation. Es lógica pura testeable sin levantar
+  Convex — 7 tests nuevos cubren empate/ganador claro/nadie votó/empate repetido/empate de tres.
+- **Schema**: `rounds.voteRound` y `rounds.tiebreakCandidateIds`; `gameConfigValidator.tieRule`.
+  `votes.cast` rechaza votos a quien no está empatado mientras haya candidatos (la abstención
+  por auto-voto sigue permitida: abstenerse no debe depender de haber quedado empatado).
+  **Requirió push a Convex** — hecho en dev. **NO pusheado a producción todavía.**
+- **Trampa encontrada al implementar (no la tenía prevista)**: el guard `hasAutoRevealed` de
+  `Voting.tsx` es un `useRef` que ya estaba consumido por la primera votación, así que el
+  desempate no se auto-revelaba nunca. Y al resetearlo aparece una carrera peor: `expired` sale
+  de un `useState` que se actualiza **en un efecto**, así que en el render donde entra el
+  desempate todavía arrastra `true` del timer anterior → el desempate se auto-revelaba a los
+  0 votos. Fix: contrastar contra `votingStartedAt` directamente
+  (`Date.now() - votingStartedAt >= voteSeconds * 1000`) en vez de confiar en `expired` solo.
+- **Bug gemelo encontrado buscando la misma construcción** (`GameRound.tsx`): `hasAutoSkipped`
+  nunca se reseteaba — se armaba una vez por montaje del componente. O sea: un jugador que se
+  quedaba sin tiempo en la vuelta 1 **no se volvía a auto-saltar en ninguna vuelta posterior**,
+  y la ronda quedaba esperando que el host apretara "SALTAR TURNO" a mano. Bug preexistente,
+  sin relación con el empate, misma familia. Corregido con reset por turno
+  (`[turnStartedAt, currentSpeakerId]`) más el mismo blindaje contra el `expired` obsoleto.
+- **Verificación**: 26/26 tests del core, `pnpm typecheck` limpio en los 5 paquetes, y una
+  partida real de 4 jugadores contra el Convex de dev forzando un empate 2-2 (script descartable
+  vía `ConvexHttpClient`): 9/9 chequeos — el empate no resuelve la ronda, pasa a `voteRound=2`
+  con los dos empatados como candidatos, los votos viejos se borran, votar a un no-empatado
+  queda bloqueado, la abstención sigue andando, y el desempate sí resuelve sin encadenar otro.
 
 ### 2026-07-03 (tanda 31) — Sentry (reporte de errores en producción)
 

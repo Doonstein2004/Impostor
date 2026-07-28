@@ -13,6 +13,8 @@ export interface Character {
   role: Role;
   /** Club más representativo (pista opcional para el modo "con ayuda"). */
   club?: string;
+  /** URL de imagen/foto de licencia libre (Wikimedia Commons, CC BY, etc.). */
+  imageUrl?: string;
   /** Etiquetas libres para futuros filtros (ej. "balon_de_oro"). */
   tags?: string[];
 }
@@ -64,6 +66,14 @@ export interface GameConfig {
    * El cómplice ve el personaje real pero también sabe quién es el impostor.
    */
   hasComplice?: boolean;
+  /**
+   * Qué pasa cuando la votación termina empatada en el primer lugar:
+   * - 'escape': no se expulsa a nadie y los impostores ganan la ronda (regla clásica).
+   * - 'revote': se reabre la votación sólo entre los empatados, con el timer reiniciado.
+   *   Si el desempate vuelve a empatar, recién ahí escapan los impostores.
+   * Ausente = 'escape' (comportamiento histórico de las salas creadas antes de esta opción).
+   */
+  tieRule?: 'escape' | 'revote';
 }
 
 export const DEFAULT_CONFIG: GameConfig = {
@@ -80,6 +90,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   commMode: 'texto',
   penaltyWrongVote: false,
   maxPlayers: 10,
+  tieRule: 'revote',
 };
 
 /** Un modo de juego predefinido con config y descripción para el lobby. */
@@ -106,8 +117,9 @@ export const GAME_MODES: GameMode[] = [
       '30 seg. por turno · 60 seg. para votar',
       '1 impostor · 3 partidas por sesión',
       'Sin penalidad por votos incorrectos',
+      'Empate en la votación: se desempata entre los empatados',
     ],
-    config: {},
+    config: { tieRule: 'revote' },
   },
   {
     id: 'rapido',
@@ -119,6 +131,7 @@ export const GAME_MODES: GameMode[] = [
       '20 seg. por turno · 30 seg. para votar',
       'El impostor no recibe ninguna pista',
       'Sesión sin límite de partidas',
+      'Empate en la votación: escapan los impostores (sin desempate)',
     ],
     config: {
       maxClueRounds: 1,
@@ -127,6 +140,7 @@ export const GAME_MODES: GameMode[] = [
       impostorHint: 'nada',
       maxRounds: 0,
       penaltyWrongVote: false,
+      tieRule: 'escape',
     },
   },
   {
@@ -139,8 +153,10 @@ export const GAME_MODES: GameMode[] = [
       '2 vueltas de pistas · 45 seg. por turno',
       'Sin pistas para los impostores',
       'Penalidad de -1 punto por votar a un inocente',
+      'Empate en la votación: se desempata entre los empatados',
     ],
     config: {
+      tieRule: 'revote',
       impostorCount: 2,
       maxClueRounds: 2,
       turnSeconds: 45,
@@ -168,6 +184,7 @@ export const GAME_MODES: GameMode[] = [
       impostorHint: 'similar',
       impostorCount: 1,
       penaltyWrongVote: false,
+      tieRule: 'revote',
     },
   },
 ];

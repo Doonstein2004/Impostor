@@ -126,6 +126,44 @@ export function tallyVotes(votes: Record<string, string>): VoteTally {
   return { counts, topIds, tie: topIds.length > 1 };
 }
 
+/**
+ * Qué hacer con el resultado de una votación.
+ * - `eject`: hay un único más votado; se lo expulsa.
+ * - `tiebreak`: hubo empate y la sala juega con desempate; se revota entre `candidates`.
+ * - `escape`: nadie es expulsado (empate sin desempate, empate repetido, o nadie votó).
+ */
+export type VoteOutcome =
+  | { kind: 'eject'; ejectedId: string }
+  | { kind: 'tiebreak'; candidates: string[] }
+  | { kind: 'escape' };
+
+export interface ResolveVoteArgs {
+  tally: VoteTally;
+  /** Regla de empate de la sala. Ausente = 'escape' (salas creadas antes de la opción). */
+  tieRule?: GameConfig['tieRule'];
+  /** Vuelta de votación actual: 1 = votación normal, 2 = desempate ya en curso. */
+  voteRound?: number;
+}
+
+/**
+ * Decide el desenlace de la votación a partir del conteo.
+ *
+ * El desempate se ofrece UNA sola vez por ronda: si la vuelta de desempate vuelve
+ * a empatar, escapan los impostores. Sin ese tope, dos impostores votando cruzado
+ * podrían reabrir la votación indefinidamente y dejar la ronda colgada.
+ */
+export function resolveVoteOutcome({ tally, tieRule, voteRound = 1 }: ResolveVoteArgs): VoteOutcome {
+  if (!tally.tie) {
+    const top = tally.topIds[0];
+    return top ? { kind: 'eject', ejectedId: top } : { kind: 'escape' };
+  }
+  // Empate: sólo se desempata si la sala lo pidió y todavía no se desempató.
+  if (tieRule === 'revote' && voteRound < 2 && tally.topIds.length > 1) {
+    return { kind: 'tiebreak', candidates: tally.topIds };
+  }
+  return { kind: 'escape' };
+}
+
 /** Genera un código de sala legible (sin caracteres ambiguos). */
 export function generateRoomCode(rng: Rng = defaultRng): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

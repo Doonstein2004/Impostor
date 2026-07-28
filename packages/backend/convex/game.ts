@@ -1,4 +1,4 @@
-import { filterPool, setupRound, tallyVotes, type GameConfig } from '@impostor/core';
+import { filterPool, resolveVoteOutcome, setupRound, tallyVotes, type GameConfig } from '@impostor/core';
 import { CHARACTERS } from '@impostor/data';
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
@@ -290,6 +290,8 @@ export const getRound = query({
       allSpoke,
       turnStartedAt: round.turnStartedAt ?? Date.now(),
       votingStartedAt: round.votingStartedAt ?? null,
+      voteRound: round.voteRound ?? 1,
+      tiebreakCandidateIds: round.tiebreakCandidateIds ?? [],
     };
   },
 });
@@ -343,7 +345,14 @@ export const startVoting = mutation({
     if (!room || !room.currentRoundId) throw new Error('No hay ronda activa');
     if (room.hostClientId !== clientId) throw new Error('Sólo el host puede abrir la votación');
     await assertOwnsIdentity(ctx, roomId, clientId, sessionToken);
-    await ctx.db.patch(room.currentRoundId, { status: 'voting', votingStartedAt: Date.now() });
+    // voteRound/tiebreakCandidateIds se fijan explícitamente: la ronda arranca siempre
+    // en votación normal, incluso si algo dejó restos de un desempate anterior.
+    await ctx.db.patch(room.currentRoundId, {
+      status: 'voting',
+      votingStartedAt: Date.now(),
+      voteRound: 1,
+      tiebreakCandidateIds: [],
+    });
     await ctx.db.patch(roomId, { status: 'voting' });
   },
 });
@@ -369,9 +378,30 @@ export const reveal = mutation({
       if (row.voterClientId !== row.targetClientId) votes[row.voterClientId] = row.targetClientId;
     }
     const tally = tallyVotes(votes);
+    const config = room.config as GameConfig;
+    const outcome = resolveVoteOutcome({
+      tally,
+      tieRule: config.tieRule,
+      voteRound: round.voteRound ?? 1,
+    });
+
+    // Empate con desempate activo: se reabre la votación entre los empatados en vez
+    // de resolver la ronda. Borramos los votos de la vuelta anterior para que el
+    // conteo del desempate arranque limpio (y el progreso "N/M votos" sea real).
+    if (outcome.kind === 'tiebreak') {
+      for (const row of voteRows) await ctx.db.delete(row._id);
+      await ctx.db.patch(round._id, {
+        status: 'voting',
+        votingStartedAt: Date.now(),
+        voteRound: (round.voteRound ?? 1) + 1,
+        tiebreakCandidateIds: outcome.candidates,
+      });
+      await ctx.db.patch(roomId, { status: 'voting' });
+      return;
+    }
 
     const impostors = new Set(round.impostorClientIds);
-    const ejected = tally.tie ? null : (tally.topIds[0] ?? null);
+    const ejected = outcome.kind === 'eject' ? outcome.ejectedId : null;
     const innocentsWin = ejected !== null && impostors.has(ejected);
 
     if (innocentsWin) {

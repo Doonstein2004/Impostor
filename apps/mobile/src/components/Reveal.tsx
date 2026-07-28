@@ -20,6 +20,7 @@ import { runAction } from '@/lib/useToast';
 import { useSounds } from '@/lib/useSounds';
 import { shareResultCard } from '@/lib/shareResult';
 import { ConfettiBlast } from './Confetti';
+import { CharacterImage } from './CharacterImage';
 import { PlayerAvatar } from './PlayerAvatar';
 import { POSITION_COLORS } from './types';
 import type { RoomView } from './types';
@@ -202,10 +203,20 @@ export function Reveal({ room }: { room: RoomView }) {
 
       {/* Carta del jugador secreto */}
       <Animated.View entering={ZoomIn.delay(600).springify()}>
-        <Card className="items-center gap-1 border-pitch-500/30 bg-pitch-500/5 mb-3">
+        <Card className="items-center gap-1.5 border-pitch-500/30 bg-pitch-500/5 mb-3 py-4">
           <Text variant="label" className="text-zinc-500">El jugador secreto era</Text>
+
+          <View className="my-1">
+            <CharacterImage
+              name={data?.secretCharacter?.name ?? '—'}
+              fullName={data?.secretCharacter?.fullName}
+              imageUrl={data?.secretCharacter?.imageUrl}
+              size={72}
+            />
+          </View>
+
           {posColors && (
-            <View className={`px-3 py-0.5 rounded-full border mt-1 ${posColors.bg} ${posColors.border}`}>
+            <View className={`px-3 py-0.5 rounded-full border ${posColors.bg} ${posColors.border}`}>
               <Text className={`text-xs font-display ${posColors.text}`}>{posColors.label}</Text>
             </View>
           )}

@@ -101,6 +101,15 @@ describe('game.reveal — abstención (self-vote)', () => {
     const t = convexTest(schema, modules);
     const { roomId, roundId, tokens } = await setupGame(t);
 
+    for (const pId of ['host', 'p2', 'p3']) {
+      await t.mutation(api.game.submitClueAndAdvance, {
+        roundId,
+        clientId: pId,
+        playerName: pId,
+        text: 'pista de prueba',
+      }).catch(() => {});
+    }
+
     await t.mutation(api.game.startVoting, { roomId, clientId: 'host', sessionToken: tokens.host! });
 
     // p2 abstiene, host y p3 votan a p2.
@@ -115,6 +124,18 @@ describe('game.reveal — abstención (self-vote)', () => {
     });
 
     await t.mutation(api.game.reveal, { roomId, clientId: 'host', sessionToken: tokens.host! });
+
+    // Si el expulsado fue el impostor, la ronda transiciona a 'impostorGuessing', por lo que resolvemos la adivinanza para llegar a 'reveal'
+    const roundState = await t.query(api.game.getRound, { roundId });
+    if (roundState?.status === 'impostorGuessing') {
+      await t.mutation(api.game.submitImpostorGuess, {
+        roundId,
+        clientId: 'p2',
+        sessionToken: tokens.p2!,
+        guess: 'incorrecta',
+      });
+    }
+
     const data = await t.query(api.game.getReveal, { roundId });
 
     expect(data!.abstainedClientIds).toEqual(['p2']);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterPool, generateRoomCode, setupRound, tallyVotes } from './game';
+import { filterPool, generateRoomCode, resolveVoteOutcome, setupRound, tallyVotes } from './game';
 import type { Character, GameConfig } from './types';
 
 /** RNG determinista para tests. */
@@ -123,6 +123,46 @@ describe('tallyVotes — escenarios de abstención', () => {
     const t = tallyVotes({ p1: 'x', p2: 'y' });
     expect(t.tie).toBe(true);
     expect(t.topIds.sort()).toEqual(['x', 'y']);
+  });
+});
+
+// ─── resolveVoteOutcome — regla de empate ─────────────────────────────────
+describe('resolveVoteOutcome', () => {
+  const tie = tallyVotes({ p1: 'x', p2: 'y' });              // x e y empatados en 1
+  const clear = tallyVotes({ p1: 'x', p2: 'x', p3: 'y' });   // x gana 2-1
+  const empty = tallyVotes({});                              // nadie votó
+
+  it('ganador único → se expulsa al más votado, sin importar la regla', () => {
+    expect(resolveVoteOutcome({ tally: clear, tieRule: 'escape' })).toEqual({ kind: 'eject', ejectedId: 'x' });
+    expect(resolveVoteOutcome({ tally: clear, tieRule: 'revote' })).toEqual({ kind: 'eject', ejectedId: 'x' });
+  });
+
+  it('empate con tieRule=escape → escapan los impostores (comportamiento histórico)', () => {
+    expect(resolveVoteOutcome({ tally: tie, tieRule: 'escape' })).toEqual({ kind: 'escape' });
+  });
+
+  it('empate sin tieRule (sala vieja) → escapan, no rompe partidas en curso', () => {
+    expect(resolveVoteOutcome({ tally: tie })).toEqual({ kind: 'escape' });
+  });
+
+  it('empate con tieRule=revote en la primera votación → desempate entre los empatados', () => {
+    const out = resolveVoteOutcome({ tally: tie, tieRule: 'revote', voteRound: 1 });
+    expect(out.kind).toBe('tiebreak');
+    expect(out.kind === 'tiebreak' && out.candidates.sort()).toEqual(['x', 'y']);
+  });
+
+  it('empate repetido en el desempate → escapan (el desempate no se encadena)', () => {
+    expect(resolveVoteOutcome({ tally: tie, tieRule: 'revote', voteRound: 2 })).toEqual({ kind: 'escape' });
+  });
+
+  it('nadie votó → escapan, nunca se abre un desempate vacío', () => {
+    expect(resolveVoteOutcome({ tally: empty, tieRule: 'revote', voteRound: 1 })).toEqual({ kind: 'escape' });
+  });
+
+  it('empate de tres → los tres van al desempate', () => {
+    const t3 = tallyVotes({ p1: 'x', p2: 'y', p3: 'z' });
+    const out = resolveVoteOutcome({ tally: t3, tieRule: 'revote', voteRound: 1 });
+    expect(out.kind === 'tiebreak' && out.candidates.sort()).toEqual(['x', 'y', 'z']);
   });
 });
 

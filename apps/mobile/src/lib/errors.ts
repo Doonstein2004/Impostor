@@ -19,6 +19,7 @@ export function friendlyError(e: unknown, fallback: string): string {
   if (/no hay ronda activa|ronda no encontrada/i.test(msg)) return 'La ronda ya no está activa.';
   if (/no hay adivinanza/i.test(msg)) return 'La adivinanza ya se resolvió.';
   if (/impostor expulsado o el host/i.test(msg)) return 'Solo el impostor o el host pueden resolver esto.';
+  if (/desempate solo podés votar/i.test(msg)) return 'En el desempate solo podés votar a los jugadores empatados.';
   if (/vacía|muy larga|demasiadas salas|está llena/i.test(msg)) return msg; // mensajes de validación ya son claros
   return fallback;
 }

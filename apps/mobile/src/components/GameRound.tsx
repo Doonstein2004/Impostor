@@ -39,6 +39,7 @@ import { avatarHex } from '@/lib/avatars';
 import { CLUE_EMOJIS, POSITION_COLORS } from './types';
 import type { RoomView } from './types';
 import { LiveReactionOverlay } from './LiveReactionOverlay';
+import { CharacterImage } from './CharacterImage';
 
 type ReactionEntry = { emoji: string; count: number };
 
@@ -173,6 +174,14 @@ const PokerCard = memo(function PokerCard({ card, speakerIndex }: { card: any; s
                 </>
               ) : (
                 <>
+                  <View className="my-1">
+                    <CharacterImage
+                      name={card?.character?.name ?? '—'}
+                      fullName={card?.character?.fullName}
+                      imageUrl={card?.character?.imageUrl}
+                      size={64}
+                    />
+                  </View>
                   {colors && (
                     <View className={`px-3 py-0.5 rounded-full border ${colors.bg} ${colors.border}`}>
                       <Text className={`text-xs font-display tracking-widest ${colors.text}`}>{colors.label}</Text>
@@ -259,6 +268,8 @@ const MyCardStrip = memo(function MyCardStrip({ card }: { card: any }) {
   const isImpostor = card.isImpostor;
   const isComplice = card.isComplice as boolean | undefined;
   const charName = card.character?.name as string | undefined;
+  const charFullName = card.character?.fullName as string | undefined;
+  const charImageUrl = card.character?.imageUrl as string | undefined;
 
   const borderColor = isImpostor
     ? 'rgba(239,68,68,0.3)'
@@ -290,6 +301,9 @@ const MyCardStrip = memo(function MyCardStrip({ card }: { card: any }) {
         borderColor, backgroundColor: bgColor,
       }}
     >
+      {!isImpostor && charName && (
+        <CharacterImage name={charName} fullName={charFullName} imageUrl={charImageUrl} size={36} />
+      )}
       <View
         style={{
           paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1,
@@ -717,12 +731,24 @@ export function GameRound({ room }: { room: RoomView }) {
   }, [timeLeft, isMyTurn, turnSeconds]);
 
   const hasAutoSkipped = useRef(false);
+  // El guard es por turno, no por montaje: sin este reset, quien se queda sin tiempo
+  // una vez no se vuelve a auto-saltar en las vueltas siguientes y la ronda queda
+  // esperando que el host apriete "SALTAR TURNO" a mano.
   useEffect(() => {
-    if (expired && isMyTurn && !hasAutoSkipped.current) {
+    hasAutoSkipped.current = false;
+  }, [turnStartedAt, currentSpeakerId]);
+
+  // `expired` sale de un useState que se actualiza en un efecto, así que en el render
+  // donde arranca el turno nuevo todavía arrastra el valor del turno anterior.
+  const turnReallyExpired =
+    expired && turnSeconds > 0 && Date.now() - turnStartedAt >= turnSeconds * 1000;
+
+  useEffect(() => {
+    if (turnReallyExpired && isMyTurn && !hasAutoSkipped.current) {
       hasAutoSkipped.current = true;
       runAction(() => skipSpeaker({ roundId, clientId }), 'No se pudo saltar el turno.');
     }
-  }, [expired, isMyTurn]);
+  }, [turnReallyExpired, isMyTurn]);
 
   // Auto-avanza a la siguiente vuelta cuando todos hablaron y aún no se llegó al límite
   const hasAutoAdvanced = useRef(false);

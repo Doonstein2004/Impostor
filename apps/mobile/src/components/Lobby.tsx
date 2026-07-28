@@ -165,6 +165,8 @@ function ConfigTabs({
   const voteSeconds = config.voteSeconds ?? 60;
   const commMode = config.commMode ?? 'texto';
   const maxPlayers = config.maxPlayers ?? 10;
+  // Ausente = 'escape': es lo que jugaron las salas creadas antes de que existiera la opción.
+  const tieRule = config.tieRule ?? 'escape';
 
   const [secondsDraft, setSecondsDraft] = useState(
     config.turnSeconds > 0 ? String(config.turnSeconds) : '',
@@ -551,6 +553,38 @@ function ConfigTabs({
                   <Text variant="label" className="text-zinc-500 text-sm">seg. personalizado</Text>
                 </View>
               )}
+            </View>
+
+            <View className="gap-2">
+              <Text variant="label" className="text-zinc-500 text-xs">⚖️ Si la votación empata</Text>
+              <View className="flex-row gap-1.5">
+                {([
+                  { key: 'revote', emoji: '🔁', label: 'Desempate', hint: 'Se revota entre los empatados' },
+                  { key: 'escape', emoji: '🏃', label: 'Escapan',   hint: 'Nadie expulsado, ganan impostores' },
+                ] as const).map(({ key, emoji, label }) => {
+                  const active = tieRule === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => onPatch({ tieRule: key })}
+                      className={`flex-1 items-center py-2.5 rounded-xl border
+                        ${active
+                          ? 'border-pitch-500/40 bg-pitch-500/20'
+                          : 'border-surface-border bg-surface-soft'}`}
+                    >
+                      <Text style={{ fontSize: 20 }}>{emoji}</Text>
+                      <Text className={`text-xs font-body mt-0.5 ${active ? 'text-pitch-400' : 'text-zinc-400'}`}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text className="text-zinc-600 text-xs">
+                {tieRule === 'revote'
+                  ? 'Se reabre la votación sólo entre los empatados. Si vuelve a empatar, escapan.'
+                  : 'Un empate deja a todos en la sala y la ronda la ganan los impostores.'}
+              </Text>
             </View>
 
             <View className="gap-2">

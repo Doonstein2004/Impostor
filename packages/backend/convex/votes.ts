@@ -27,6 +27,17 @@ export const cast = mutation({
       .first();
     if (!target || target.isSpectator) throw new Error('El objetivo no es un jugador válido');
 
+    // En un desempate solo se puede votar a los empatados. El auto-voto (abstención)
+    // sigue permitido: abstenerse no debe depender de haber quedado empatado.
+    const candidates = round.tiebreakCandidateIds ?? [];
+    if (
+      candidates.length > 0 &&
+      targetClientId !== voterClientId &&
+      !candidates.includes(targetClientId)
+    ) {
+      throw new Error('En el desempate solo podés votar a los jugadores empatados');
+    }
+
     const existing = await ctx.db
       .query('votes')
       .withIndex('by_round_voter', (q) =>

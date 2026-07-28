@@ -36,6 +36,14 @@ export function Voting({ room }: { room: RoomView }) {
   const total = voteState?.total ?? 0;
   const allVoted = total >= room.players.length;
 
+  // Desempate: la votación anterior terminó empatada y sólo se puede votar a los empatados.
+  const voteRound = round?.voteRound ?? 1;
+  const tiebreakIds = round?.tiebreakCandidateIds ?? [];
+  const isTiebreak = tiebreakIds.length > 0;
+  const tiebreakNames = room.players
+    .filter((p) => tiebreakIds.includes(p.clientId))
+    .map((p) => p.name);
+
   const voteSeconds = room.config.voteSeconds ?? 60;
   const votingStartedAt = round?.votingStartedAt ?? null;
   const { timeLeft, expired } = useCountdown(
@@ -45,13 +53,28 @@ export function Voting({ room }: { room: RoomView }) {
   );
 
   const hasAutoRevealed = useRef(false);
+  // Al entrar en desempate se abre una votación nueva: hay que rearmar el guard,
+  // si no el auto-reveal quedaría consumido por la votación anterior y el desempate
+  // se colgaría esperando que el host apretara "Revelar" a mano.
+  useEffect(() => {
+    hasAutoRevealed.current = false;
+  }, [voteRound]);
+
+  // `expired` sale de un useState que se actualiza en un efecto, así que en el render
+  // donde entra el desempate todavía arrastra el valor del timer anterior. Contrastarlo
+  // contra el votingStartedAt nuevo evita revelar el desempate apenas se abre.
+  const timerReallyExpired =
+    expired &&
+    votingStartedAt !== null &&
+    Date.now() - votingStartedAt >= voteSeconds * 1000;
+
   // Auto-revela al expirar el tiempo…
   useEffect(() => {
-    if (expired && isHost && !hasAutoRevealed.current && roundId) {
+    if (timerReallyExpired && isHost && !hasAutoRevealed.current && roundId) {
       hasAutoRevealed.current = true;
       runAction(() => reveal({ roomId: room._id, clientId, sessionToken: sessionToken ?? '' }), 'No se pudo revelar el resultado.');
     }
-  }, [expired, isHost]);
+  }, [timerReallyExpired, isHost]);
   // …y también apenas votan todos (sin esperar al host).
   useEffect(() => {
     if (allVoted && isHost && !hasAutoRevealed.current && roundId) {
@@ -85,9 +108,15 @@ export function Voting({ room }: { room: RoomView }) {
 
       {/* Header */}
       <Animated.View entering={FadeInDown.duration(400)} className="items-center py-4">
-        <Text className="text-5xl mb-2">🟥</Text>
-        <Text variant="display" className="text-impostor-400 text-2xl">¡VOTACIÓN!</Text>
-        <Text variant="muted" className="mt-1">¿Quién es el impostor entre ustedes?</Text>
+        <Text className="text-5xl mb-2">{isTiebreak ? '⚖️' : '🟥'}</Text>
+        <Text variant="display" className="text-impostor-400 text-2xl">
+          {isTiebreak ? '¡DESEMPATE!' : '¡VOTACIÓN!'}
+        </Text>
+        <Text variant="muted" className="mt-1">
+          {isTiebreak
+            ? 'Quedó empatado. Se vota otra vez, sólo entre los empatados.'
+            : '¿Quién es el impostor entre ustedes?'}
+        </Text>
 
         {/* Temporizador de votación */}
         {voteSeconds > 0 && votingStartedAt && (
@@ -117,17 +146,33 @@ export function Voting({ room }: { room: RoomView }) {
         </Text>
       </Animated.View>
 
+      {/* Aviso de desempate: quiénes quedaron empatados */}
+      {isTiebreak && (
+        <Animated.View entering={FadeInDown.duration(300)} className="mt-1">
+          <Card className="items-center gap-1 border-yellow-500/40 bg-yellow-500/5">
+            <Text variant="label" className="text-yellow-400 text-xs">EMPATADOS</Text>
+            <Text variant="body" className="text-center">{tiebreakNames.join('  ·  ')}</Text>
+            <Text variant="muted" className="text-center text-xs">
+              Si vuelve a empatar, no se expulsa a nadie y ganan los impostores.
+            </Text>
+          </Card>
+        </Animated.View>
+      )}
+
       {/* Lista de jugadores para votar */}
       <View className="gap-2 mt-2">
         {room.players.map((p, i) => {
           const isMe = p.clientId === clientId;
           const hasVoted = voteState?.votedClientIds.includes(p.clientId);
           const iVotedFor = voteState?.votesByVoter?.[clientId] === p.clientId;
+          // En desempate sólo son votables los empatados.
+          const isCandidate = !isTiebreak || tiebreakIds.includes(p.clientId);
+          const locked = isMe || !isCandidate;
 
           return (
             <Animated.View key={p.clientId} entering={FadeInRight.delay(i * 80).duration(300).springify()}>
               <Pressable
-                disabled={isMe || !roundId}
+                disabled={locked || !roundId}
                 onPress={() => {
                   play('vote');
                   Haptics.light();
@@ -140,7 +185,7 @@ export function Voting({ room }: { room: RoomView }) {
                 <Card
                   className={`flex-row items-center justify-between
                     ${iVotedFor ? 'border-impostor-500 bg-impostor-500/10' : ''}
-                    ${isMe ? 'opacity-40' : ''}
+                    ${locked ? 'opacity-40' : ''}
                   `}
                 >
                   <View className="flex-row items-center gap-3">
@@ -159,9 +204,11 @@ export function Voting({ room }: { room: RoomView }) {
                     )}
                     {iVotedFor ? (
                       <Text variant="label" className="text-impostor-400">🎯 votado</Text>
-                    ) : !isMe ? (
+                    ) : isMe ? null : isCandidate ? (
                       <Text variant="muted" className="text-xs">Votar</Text>
-                    ) : null}
+                    ) : (
+                      <Text variant="muted" className="text-xs">Fuera del desempate</Text>
+                    )}
                   </View>
                 </Card>
               </Pressable>

@@ -41,6 +41,11 @@ export const gameConfigValidator = v.object({
   declarationMode: v.optional(v.boolean()),
   /** Activa el rol Complice: un inocente aliado del impostor que gana con el equipo impostor. */
   hasComplice: v.optional(v.boolean()),
+  /**
+   * Empate en la votacion: 'escape' = no se expulsa a nadie y ganan los impostores;
+   * 'revote' = se reabre la votacion solo entre los empatados. Ausente = 'escape'.
+   */
+  tieRule: v.optional(v.union(v.literal('escape'), v.literal('revote'))),
 });
 
 export const roomStatusValidator = v.union(
@@ -109,6 +114,13 @@ export default defineSchema({
     turnStartedAt: v.optional(v.number()),
     /** Timestamp cuando se abrió la votación. */
     votingStartedAt: v.optional(v.number()),
+    /** Vuelta de votacion: 1 = votacion normal, 2 = desempate. Ausente = 1. */
+    voteRound: v.optional(v.number()),
+    /**
+     * Durante un desempate, los unicos clientIds que se pueden votar. Vacio/ausente
+     * = se puede votar a cualquiera (votacion normal).
+     */
+    tiebreakCandidateIds: v.optional(v.array(v.string())),
     /** clientId del cómplice asignado en esta ronda (si hasComplice estaba activo). */
     compliceClientId: v.optional(v.string()),
     /** clientId del jugador más votado (null si hubo empate). */

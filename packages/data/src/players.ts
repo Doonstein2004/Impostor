@@ -2,11 +2,11 @@ import type { Character } from '@impostor/core';
 
 export const CHARACTERS: Character[] = [
   // ─── LEYENDAS ─────────────────────────────────────────────────────────────
-  { id: 'pele', name: 'Pelé', fullName: 'Edson Arantes do Nascimento', nationality: 'Brasil', zone: 'atacante', era: 'leyenda', role: 'jugador', club: 'Santos', tags: ['mundial'] },
-  { id: 'maradona', name: 'Maradona', fullName: 'Diego Armando Maradona', nationality: 'Argentina', zone: 'medio', era: 'leyenda', role: 'jugador', club: 'Napoli', tags: ['mundial'] },
-  { id: 'cruyff', name: 'Cruyff', fullName: 'Johan Cruyff', nationality: 'Países Bajos', zone: 'atacante', era: 'leyenda', role: 'jugador', club: 'Barcelona', tags: ['balon_de_oro'] },
-  { id: 'beckenbauer', name: 'Beckenbauer', fullName: 'Franz Beckenbauer', nationality: 'Alemania', zone: 'defensor', era: 'leyenda', role: 'jugador', club: 'Bayern', tags: ['mundial'] },
-  { id: 'van-basten', name: 'Van Basten', fullName: 'Marco van Basten', nationality: 'Países Bajos', zone: 'atacante', era: 'leyenda', role: 'jugador', club: 'Milan', tags: ['balon_de_oro'] },
+  { id: 'pele', name: 'Pelé', fullName: 'Edson Arantes do Nascimento', nationality: 'Brasil', zone: 'atacante', era: 'leyenda', role: 'jugador', club: 'Santos', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/5/54/Pele_by_John_Mathew_Smith_crop.jpg', tags: ['mundial'] },
+  { id: 'maradona', name: 'Maradona', fullName: 'Diego Armando Maradona', nationality: 'Argentina', zone: 'medio', era: 'leyenda', role: 'jugador', club: 'Napoli', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/2/2c/Maradona-in-italy.jpg', tags: ['mundial'] },
+  { id: 'cruyff', name: 'Cruyff', fullName: 'Johan Cruyff', nationality: 'Países Bajos', zone: 'atacante', era: 'leyenda', role: 'jugador', club: 'Barcelona', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/e1/Johan_Cruijff_1974c.jpg', tags: ['balon_de_oro'] },
+  { id: 'beckenbauer', name: 'Beckenbauer', fullName: 'Franz Beckenbauer', nationality: 'Alemania', zone: 'defensor', era: 'leyenda', role: 'jugador', club: 'Bayern', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Franz_Beckenbauer_1975.jpg', tags: ['mundial'] },
+  { id: 'van-basten', name: 'Van Basten', fullName: 'Marco van Basten', nationality: 'Países Bajos', zone: 'atacante', era: 'leyenda', role: 'jugador', club: 'Milan', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/36/Marco_van_Basten_1990.jpg', tags: ['balon_de_oro'] },
   { id: 'gullit', name: 'Gullit', fullName: 'Ruud Gullit', nationality: 'Países Bajos', zone: 'atacante', era: 'leyenda', role: 'jugador', club: 'Milan', tags: ['balon_de_oro'] },
   { id: 'platini', name: 'Platini', fullName: 'Michel Platini', nationality: 'Francia', zone: 'medio', era: 'leyenda', role: 'jugador', club: 'Juventus', tags: ['balon_de_oro'] },
   { id: 'socrates', name: 'Sócrates', fullName: 'Sócrates Brasileiro Sampaio', nationality: 'Brasil', zone: 'medio', era: 'leyenda', role: 'jugador', club: 'Corinthians' },

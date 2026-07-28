@@ -23,7 +23,7 @@ import type { RoomView } from './types';
 
 const WEB_MAX_WIDTH = 430;
 /** A partir de este ancho (web) el chat va como panel lateral fijo, sin tapar el juego. */
-const SIDE_MODE_MIN_WIDTH = 820;
+const SIDE_MODE_MIN_WIDTH = 1200;
 
 /**
  * Chat de sala. Diseñado para no interferir con el juego y para escribir fluido:
@@ -82,6 +82,7 @@ export function GameChat({ room }: { room: RoomView }) {
   }, [sideMode, setDockHeight]);
 
   const [expanded, setExpanded] = useState(false);
+  const [sidePanelVisible, setSidePanelVisible] = useState(true);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [seen, setSeen] = useState<number | null>(null);
@@ -265,6 +266,39 @@ export function GameChat({ room }: { room: RoomView }) {
 
   // ── Modo panel lateral (web ancho) ───────────────────────────────────────
   if (sideMode) {
+    // Botón flotante para abrir el chat cuando está oculto
+    if (!sidePanelVisible) {
+      return (
+        <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}>
+          <Pressable
+            onPress={() => setSidePanelVisible(true)}
+            style={{
+              position: 'absolute', right: 24, top: 24,
+              width: 48, height: 48, borderRadius: 24,
+              alignItems: 'center', justifyContent: 'center',
+              backgroundColor: '#0c0c0d', borderWidth: 1, borderColor: '#27272a',
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>{audioMode ? '🎙️' : '💬'}</Text>
+            {unread > 0 && (
+              <View
+                style={{
+                  position: 'absolute', top: -4, right: -4,
+                  minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: '#ef4444', borderWidth: 1.5, borderColor: '#0c0c0d',
+                }}
+              >
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>
+                  {unread > 9 ? '9+' : unread}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
+      );
+    }
+
     return (
       <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}>
         <View
@@ -276,9 +310,19 @@ export function GameChat({ room }: { room: RoomView }) {
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1c1c1e' }}>
             <Text style={{ fontSize: 17 }}>{audioMode ? '🎙️' : '💬'}</Text>
-            <Text style={{ fontSize: 12, letterSpacing: 1.5, fontWeight: '700', color: '#d4d4d8' }}>
+            <Text style={{ flex: 1, fontSize: 12, letterSpacing: 1.5, fontWeight: '700', color: '#d4d4d8' }}>
               {audioMode ? 'SALA DE AUDIO' : 'CHAT DE SALA'}
             </Text>
+            <Pressable
+              onPress={() => setSidePanelVisible(false)}
+              style={{
+                width: 28, height: 28, borderRadius: 14,
+                alignItems: 'center', justifyContent: 'center',
+                backgroundColor: 'rgba(255,255,255,0.09)',
+              }}
+            >
+              <Text style={{ fontSize: 14, color: '#e4e4e7' }}>✕</Text>
+            </Pressable>
           </View>
           {audioMode ? (
             audioPlaceholder
