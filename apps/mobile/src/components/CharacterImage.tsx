@@ -19,8 +19,11 @@ const wikiCache = new Map<string, string | null>();
  *
  * Estrategia de carga:
  * 1. Si tiene `imageUrl` hardcodeada, la usa directamente.
- * 2. Si no, intenta obtener la thumbnail desde la API REST de Wikipedia
- *    usando `fullName` (las imágenes de Wikipedia son de dominio público o CC BY-SA).
+ * 2. Si no, busca la thumbnail vía la API de búsqueda de Wikipedia en español
+ *    (`action=query&generator=search`), usando el nombre común (`name`) —
+ *    no `fullName`: el título del artículo casi nunca es el nombre completo
+ *    (ej. Garrincha = "Manuel Francisco dos Santos"), y la búsqueda por texto
+ *    tolera apodos/acentos donde una búsqueda de título exacto fallaría.
  * 3. Si todo falla, muestra un fallback elegante con las iniciales.
  */
 export function CharacterImage({
@@ -35,10 +38,10 @@ export function CharacterImage({
 
   // Buscar imagen de Wikipedia si no hay imageUrl directa
   useEffect(() => {
-    if (imageUrl || !fullName) return;
+    if (imageUrl || !name) return;
 
-    // Revisar cache primero
-    const cached = wikiCache.get(fullName);
+    const cacheKey = fullName ? `${name}|${fullName}` : name;
+    const cached = wikiCache.get(cacheKey);
     if (cached !== undefined) {
       setWikiUrl(cached);
       return;
@@ -47,21 +50,30 @@ export function CharacterImage({
     let cancelled = false;
     setWikiLoading(true);
 
-    const title = fullName.replace(/ /g, '_');
-    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`)
+    const searchTerm = `${name} futbolista`;
+    const url =
+      `https://es.wikipedia.org/w/api.php?action=query&format=json&origin=*` +
+      `&generator=search&gsrsearch=${encodeURIComponent(searchTerm)}&gsrlimit=1` +
+      `&prop=pageimages&piprop=thumbnail&pithumbsize=300`;
+
+    fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error('not found');
         return r.json();
       })
       .then((data) => {
         if (cancelled) return;
-        const url = data?.thumbnail?.source ?? null;
-        wikiCache.set(fullName, url);
-        setWikiUrl(url);
+        const pages = data?.query?.pages;
+        const firstPage = pages ? Object.values(pages)[0] : null;
+        const thumb =
+          (firstPage as { thumbnail?: { source?: string } } | null)?.thumbnail
+            ?.source ?? null;
+        wikiCache.set(cacheKey, thumb);
+        setWikiUrl(thumb);
       })
       .catch(() => {
         if (cancelled) return;
-        wikiCache.set(fullName, null);
+        wikiCache.set(cacheKey, null);
         setWikiUrl(null);
       })
       .finally(() => {
@@ -69,7 +81,7 @@ export function CharacterImage({
       });
 
     return () => { cancelled = true; };
-  }, [imageUrl, fullName]);
+  }, [imageUrl, name, fullName]);
 
   const resolvedUrl = imageUrl || wikiUrl;
   const initial = (name?.trim().charAt(0) || '?').toUpperCase();
