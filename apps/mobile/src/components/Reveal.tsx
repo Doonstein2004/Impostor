@@ -211,7 +211,7 @@ export function Reveal({ room }: { room: RoomView }) {
               name={data?.secretCharacter?.name ?? '—'}
               fullName={data?.secretCharacter?.fullName}
               imageUrl={data?.secretCharacter?.imageUrl}
-              size={72}
+              size={104}
             />
           </View>
 

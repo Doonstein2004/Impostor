@@ -14,16 +14,59 @@ interface CharacterImageProps {
 /** Cache en memoria para no repetir fetches de Wikipedia en la misma sesión. */
 const wikiCache = new Map<string, string | null>();
 
+const WIKI_UA_HEADERS = { 'Api-User-Agent': 'ImpostorFutbolApp/1.0 (https://impostor-black-one.vercel.app)' };
+
+type WikiPage = { title?: string; missing?: unknown; thumbnail?: { source?: string } };
+
+function firstThumb(data: unknown): string | null {
+  const pages = (data as { query?: { pages?: Record<string, WikiPage> } })?.query?.pages;
+  const page = pages ? Object.values(pages)[0] : null;
+  return page && page.missing === undefined ? page.thumbnail?.source ?? null : null;
+}
+
+/**
+ * Busca la thumbnail de un personaje en Wikipedia en español.
+ *
+ * Estrategia en dos niveles:
+ * 1. Match exacto de título vía `fullName` (con `redirects=1`) — rápido y preciso.
+ *    Cubre incluso apodos como Garrincha, porque Wikipedia tiene una página de
+ *    redirect desde el nombre de nacimiento ("Manuel Francisco dos Santos")
+ *    hacia el artículo real.
+ * 2. Si no hay match (nombre completo no coincide con ningún título/redirect),
+ *    fallback a búsqueda de texto completo usando `name` — pero SIN el sufijo
+ *    parentético que algunos personajes usan para desambiguar en el pool
+ *    (ej. "Zidane (DT)", "Trezeguet (Egipto)"): buscar el string literal con
+ *    paréntesis rompe la búsqueda y devuelve páginas sin relación.
+ */
+async function fetchWikiThumb(name: string, fullName?: string): Promise<string | null> {
+  if (fullName) {
+    const titleUrl =
+      `https://es.wikipedia.org/w/api.php?action=query&format=json&origin=*` +
+      `&titles=${encodeURIComponent(fullName)}&redirects=1` +
+      `&prop=pageimages&piprop=thumbnail&pithumbsize=300`;
+    const r = await fetch(titleUrl, { headers: WIKI_UA_HEADERS });
+    if (r.ok) {
+      const thumb = firstThumb(await r.json());
+      if (thumb) return thumb;
+    }
+  }
+
+  const strippedName = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const searchUrl =
+    `https://es.wikipedia.org/w/api.php?action=query&format=json&origin=*` +
+    `&generator=search&gsrsearch=${encodeURIComponent(`${strippedName} futbolista`)}&gsrlimit=1` +
+    `&prop=pageimages&piprop=thumbnail&pithumbsize=300`;
+  const r = await fetch(searchUrl, { headers: WIKI_UA_HEADERS });
+  if (!r.ok) return null;
+  return firstThumb(await r.json());
+}
+
 /**
  * Componente para renderizar la imagen de un personaje.
  *
  * Estrategia de carga:
  * 1. Si tiene `imageUrl` hardcodeada, la usa directamente.
- * 2. Si no, busca la thumbnail vía la API de búsqueda de Wikipedia en español
- *    (`action=query&generator=search`), usando el nombre común (`name`) —
- *    no `fullName`: el título del artículo casi nunca es el nombre completo
- *    (ej. Garrincha = "Manuel Francisco dos Santos"), y la búsqueda por texto
- *    tolera apodos/acentos donde una búsqueda de título exacto fallaría.
+ * 2. Si no, busca la thumbnail en Wikipedia (ver `fetchWikiThumb`).
  * 3. Si todo falla, muestra un fallback elegante con las iniciales.
  */
 export function CharacterImage({
@@ -50,24 +93,9 @@ export function CharacterImage({
     let cancelled = false;
     setWikiLoading(true);
 
-    const searchTerm = `${name} futbolista`;
-    const url =
-      `https://es.wikipedia.org/w/api.php?action=query&format=json&origin=*` +
-      `&generator=search&gsrsearch=${encodeURIComponent(searchTerm)}&gsrlimit=1` +
-      `&prop=pageimages&piprop=thumbnail&pithumbsize=300`;
-
-    fetch(url)
-      .then((r) => {
-        if (!r.ok) throw new Error('not found');
-        return r.json();
-      })
-      .then((data) => {
+    fetchWikiThumb(name, fullName)
+      .then((thumb) => {
         if (cancelled) return;
-        const pages = data?.query?.pages;
-        const firstPage = pages ? Object.values(pages)[0] : null;
-        const thumb =
-          (firstPage as { thumbnail?: { source?: string } } | null)?.thumbnail
-            ?.source ?? null;
         wikiCache.set(cacheKey, thumb);
         setWikiUrl(thumb);
       })
